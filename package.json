@@ -1,0 +1,46 @@
+{
+    "name": "@predy/predy-protocol",
+    "version": "0.1.0",
+    "description": "decentralized option protocol",
+    "directories": {
+        "test": "test"
+    },
+    "scripts": {
+        "build": "truffle compile",
+        "migrate": "truffle migrate --network local",
+        "generate": "truffle compile && typechain --target=truffle-v5 --outDir build/types/truffle-types './build/**/*.json'",
+        "test": "truffle test ./test/**/*.ts",
+        "test:file": "truffle test",
+        "coverage": "truffle run coverage",
+        "lint:check": "prettier --check \"contracts/**/*.sol\" \"test/**/*.ts\"",
+        "lint:write": "prettier --write \"contracts/**/*.sol\" \"test/**/*.ts\""
+    },
+    "author": "predy",
+    "license": "MIT",
+    "keywords": [
+        "ethereum",
+        "derivative"
+    ],
+    "dependencies": {
+        "@chainlink/contracts": "^0.1.6",
+        "@openzeppelin/contracts": "v4.0.0"
+    },
+    "devDependencies": {
+        "@openzeppelin/test-helpers": "^0.5.10",
+        "@typechain/truffle-v5": "^4.0.1",
+        "@types/bn.js": "^4.11.6",
+        "@types/chai": "^4.2.15",
+        "@types/mocha": "^5.2.7",
+        "@types/web3": "^1.2.2",
+        "coveralls": "^3.1.0",
+        "eth-gas-reporter": "^0.2.22",
+        "ethers": "^5.0.32",
+        "prettier-plugin-solidity": "^1.0.0-beta.6",
+        "solidity-coverage": "^0.7.16",
+        "truffle": "^5.2.6",
+        "truffle-typings": "^1.0.8",
+        "ts-node": "^9.1.1",
+        "typechain": "^4.0.3",
+        "typescript": "^4.2.3"
+    }
+}
