@@ -41,7 +41,8 @@ contract OptionsFactory {
         address _priceOracle,
         address _feeRecepient
     ) public {
-        Options options = new Options("", _asset, _pool, _accountContractAddress, _priceOracle, PredyStaking(_feeRecepient));
+        Options options =
+            new Options("", _asset, _pool, _accountContractAddress, _priceOracle, PredyStaking(_feeRecepient));
         address optionsAddress = address(options);
         getOptions[_asset] = optionsAddress;
         emit OptionsCreated(optionsAddress);

@@ -243,7 +243,10 @@ contract('Pool', ([alice]) => {
       const amount = scale(2, 18)
       const maturity = 60 * 60 * 24 * 6
       // assertion
-      await expectRevert(pool.sell(optionId, spot, amount, maturity, strike, OptionType.Call), 'Pool: 1. tick must be positive')
+      await expectRevert(
+        pool.sell(optionId, spot, amount, maturity, strike, OptionType.Call),
+        'Pool: 1. tick must be positive',
+      )
     })
 
     it('reverts because there are no enough premium pool', async () => {
@@ -251,7 +254,10 @@ contract('Pool', ([alice]) => {
       const amount = scale(1, 18)
       const maturity = 60 * 60 * 24 * 8
       // assertion
-      await expectRevert(pool.sell(optionId, spot, amount, maturity, strike, OptionType.Call), 'Pool: 1. tick must be positive')
+      await expectRevert(
+        pool.sell(optionId, spot, amount, maturity, strike, OptionType.Call),
+        'Pool: 1. tick must be positive',
+      )
     })
   })
 

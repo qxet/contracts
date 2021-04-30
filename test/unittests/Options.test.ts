@@ -4,7 +4,7 @@ import {
   MockStakingInstance,
   MockPoolInstance,
   MockERC20Instance,
-  MockMarginVaultInstance
+  MockMarginVaultInstance,
 } from '../../build/types/truffle-types'
 const { expectRevert } = require('@openzeppelin/test-helpers')
 
@@ -35,7 +35,14 @@ contract('Options', ([alice]) => {
     mockPool = await MockPool.new(weth.address)
     ethUsdAggregator = await MockChainlinkAggregator.new()
     const mockStaking: MockStakingInstance = await MockStaking.new('MOCK_STAKING', 'MOCK')
-    options = await Options.new(uri, weth.address, mockPool.address, mockMarginVault.address, ethUsdAggregator.address, mockStaking.address)
+    options = await Options.new(
+      uri,
+      weth.address,
+      mockPool.address,
+      mockMarginVault.address,
+      ethUsdAggregator.address,
+      mockStaking.address,
+    )
     await ethUsdAggregator.setLatestAnswer(spot)
   })
 

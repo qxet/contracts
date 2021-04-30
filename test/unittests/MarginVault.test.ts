@@ -17,19 +17,18 @@ contract('MarginVault', ([alice]) => {
   })
 
   describe('write', () => {
-
     it('write call bear spread', async () => {
       const longId = 1
       const shortId = 2
       const long = {
         expiry,
         strike: scale(1000, 8).toString(),
-        optionType: OptionType.Call
+        optionType: OptionType.Call,
       }
       const short = {
         expiry,
         strike: scale(800, 8).toString(),
-        optionType: OptionType.Call
+        optionType: OptionType.Call,
       }
       const eth = await marginVault.write.call(alice, longId, shortId, long, short, amount)
       assert.equal(eth.toString(), scale(25, 6).toString())
@@ -41,12 +40,12 @@ contract('MarginVault', ([alice]) => {
       const long = {
         expiry,
         strike: scale(1000, 8).toString(),
-        optionType: OptionType.Call
+        optionType: OptionType.Call,
       }
       const short = {
         expiry,
         strike: scale(1200, 8).toString(),
-        optionType: OptionType.Call
+        optionType: OptionType.Call,
       }
       await marginVault.write(alice, longId, shortId, long, short, amount)
     })
@@ -57,12 +56,12 @@ contract('MarginVault', ([alice]) => {
       const long = {
         expiry,
         strike: scale(1000, 8).toString(),
-        optionType: OptionType.Put
+        optionType: OptionType.Put,
       }
       const short = {
         expiry,
         strike: scale(800, 8).toString(),
-        optionType: OptionType.Put
+        optionType: OptionType.Put,
       }
       await marginVault.write(alice, longId, shortId, long, short, amount)
     })
@@ -73,12 +72,12 @@ contract('MarginVault', ([alice]) => {
       const long = {
         expiry,
         strike: scale(1000, 8).toString(),
-        optionType: OptionType.Put
+        optionType: OptionType.Put,
       }
       const short = {
         expiry,
         strike: scale(1200, 8).toString(),
-        optionType: OptionType.Put
+        optionType: OptionType.Put,
       }
       const eth = await marginVault.write.call(alice, longId, shortId, long, short, amount)
       assert.equal(eth.toString(), scale(2, 7).toString())
@@ -91,14 +90,17 @@ contract('MarginVault', ([alice]) => {
       const long = {
         expiry,
         strike: scale(1000, 8).toString(),
-        optionType: OptionType.Put
+        optionType: OptionType.Put,
       }
       const short = {
         expiry: differentExpiry,
         strike: scale(1200, 8).toString(),
-        optionType: OptionType.Put
+        optionType: OptionType.Put,
       }
-      await expectRevert(marginVault.write(alice, longId, shortId, long, short, amount), 'MarginVault: expirations must be same')
+      await expectRevert(
+        marginVault.write(alice, longId, shortId, long, short, amount),
+        'MarginVault: expirations must be same',
+      )
     })
 
     it('reverts by different option type', async () => {
@@ -107,14 +109,17 @@ contract('MarginVault', ([alice]) => {
       const long = {
         expiry,
         strike: scale(1000, 8).toString(),
-        optionType: OptionType.Call
+        optionType: OptionType.Call,
       }
       const short = {
         expiry,
         strike: scale(1200, 8).toString(),
-        optionType: OptionType.Put
+        optionType: OptionType.Put,
       }
-      await expectRevert(marginVault.write(alice, longId, shortId, long, short, amount), 'MarginVault: option types must be same')
+      await expectRevert(
+        marginVault.write(alice, longId, shortId, long, short, amount),
+        'MarginVault: option types must be same',
+      )
     })
   })
 })

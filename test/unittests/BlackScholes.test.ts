@@ -47,8 +47,6 @@ contract('BlackScholesTester', ([]) => {
       console.log(premium[0].toString())
       console.log(premium[1].toString())
     })
-
-
   })
   describe('call option price', () => {
     // $2200
@@ -63,8 +61,26 @@ contract('BlackScholesTester', ([]) => {
     it('calculate OTM call option price', async () => {
       // $2500
       const strike = scale(2500, 8)
-      const premiumBuy = await tester.calculateOptionPrice(spot, strike, maturity, x0, amount, k, OptionType.Call, false)
-      const premiumSell = await tester.calculateOptionPrice(spot, strike, maturity, x0, amount, k, OptionType.Call, true)
+      const premiumBuy = await tester.calculateOptionPrice(
+        spot,
+        strike,
+        maturity,
+        x0,
+        amount,
+        k,
+        OptionType.Call,
+        false,
+      )
+      const premiumSell = await tester.calculateOptionPrice(
+        spot,
+        strike,
+        maturity,
+        x0,
+        amount,
+        k,
+        OptionType.Call,
+        true,
+      )
       const d = await tester.calD1D2(spot, strike, maturity, x0)
       const diff = await tester.calDiff(spot, strike, maturity, x0)
       console.log('OTM d1', d[0].toString())
@@ -83,8 +99,26 @@ contract('BlackScholesTester', ([]) => {
     it('calculate ATM call option price', async () => {
       // ATM
       const strike = spot
-      const premiumBuy = await tester.calculateOptionPrice(spot, strike, maturity, x0, amount, k, OptionType.Call, false)
-      const premiumSell = await tester.calculateOptionPrice(spot, strike, maturity, x0, amount, k, OptionType.Call, true)
+      const premiumBuy = await tester.calculateOptionPrice(
+        spot,
+        strike,
+        maturity,
+        x0,
+        amount,
+        k,
+        OptionType.Call,
+        false,
+      )
+      const premiumSell = await tester.calculateOptionPrice(
+        spot,
+        strike,
+        maturity,
+        x0,
+        amount,
+        k,
+        OptionType.Call,
+        true,
+      )
       const d = await tester.calD1D2(spot, strike, maturity, x0)
       const diff = await tester.calDiff(spot, strike, maturity, x0)
       console.log('ATM d1', d[0].toString())
@@ -102,8 +136,26 @@ contract('BlackScholesTester', ([]) => {
     it('calculate ITM call option price', async () => {
       // $2000
       const strike = scale(2000, 8)
-      const premiumBuy = await tester.calculateOptionPrice(spot, strike, maturity, x0, amount, k, OptionType.Call, false)
-      const premiumSell = await tester.calculateOptionPrice(spot, strike, maturity, x0, amount, k, OptionType.Call, true)
+      const premiumBuy = await tester.calculateOptionPrice(
+        spot,
+        strike,
+        maturity,
+        x0,
+        amount,
+        k,
+        OptionType.Call,
+        false,
+      )
+      const premiumSell = await tester.calculateOptionPrice(
+        spot,
+        strike,
+        maturity,
+        x0,
+        amount,
+        k,
+        OptionType.Call,
+        true,
+      )
       const d = await tester.calD1D2(spot, strike, maturity, x0)
       const diff = await tester.calDiff(spot, strike, maturity, x0)
       console.log('ITM d1', d[0].toString())
@@ -126,6 +178,4 @@ contract('BlackScholesTester', ([]) => {
       )
     })
   })
-
-
 })

@@ -4,7 +4,7 @@ import {
   MockChainlinkAggregatorInstance,
   MockStakingInstance,
   MockERC20Instance,
-  MockMarginVaultInstance
+  MockMarginVaultInstance,
 } from '../../build/types/truffle-types'
 import { formatEther, genRangeId, scale } from '../utils'
 const { expectRevert, time } = require('@openzeppelin/test-helpers')
@@ -42,7 +42,14 @@ contract('Scenario Test', ([alice, bob]) => {
 
     pool = await Pool.new(weth.address)
     mockMarginVault = await MockMarginVault.new()
-    options = await Options.new(uri, weth.address, pool.address, mockMarginVault.address, ethUsdAggregator.address, mockStaking.address)
+    options = await Options.new(
+      uri,
+      weth.address,
+      pool.address,
+      mockMarginVault.address,
+      ethUsdAggregator.address,
+      mockStaking.address,
+    )
     await pool.transferOwnership(options.address)
 
     // spot price is $2200
