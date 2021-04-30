@@ -185,7 +185,7 @@ contract Pool is IPool, ERC1155, Ownable {
                     }
                 }
                 uint256 premium =
-                    (PriceCalculator.calculateOptionPrice(
+                    PriceCalculator.calculateOptionPrice(
                         _spotPrice,
                         _strike,
                         _maturity,
@@ -193,7 +193,8 @@ contract Pool is IPool, ERC1155, Ownable {
                         step.stepAmount / 1e10,
                         kE8,
                         _optionType
-                    ) * 1e18) / _spotPrice;
+                    );
+                premium = (premium * 1e18) / _spotPrice;
                 premium += calculateSpread(premium);
 
                 totalPremium += premium;
@@ -290,7 +291,7 @@ contract Pool is IPool, ERC1155, Ownable {
             step.position -= (kE8 * step.stepAmount) / 1e18;
             {
                 uint256 premium =
-                    (PriceCalculator.calculateOptionPrice(
+                    PriceCalculator.calculateOptionPrice(
                         _spotPrice,
                         _strike,
                         _maturity,
@@ -298,7 +299,8 @@ contract Pool is IPool, ERC1155, Ownable {
                         step.stepAmount / 1e10,
                         kE8,
                         _optionType
-                    ) * 1e18) / _spotPrice;
+                    );
+                premium = (premium * 1e18) / _spotPrice;
                 premium -= calculateSpread(premium);
 
                 totalPremium += premium;

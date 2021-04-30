@@ -11,6 +11,7 @@
         "generate": "truffle compile && typechain --target=truffle-v5 --outDir build/types/truffle-types './build/**/*.json'",
         "test": "truffle test ./test/**/*.ts",
         "test:file": "truffle test",
+        "test:coverage": "truffle run coverage",
         "coverage": "truffle run coverage",
         "lint:check": "prettier --check \"contracts/**/*.sol\" \"test/**/*.ts\"",
         "lint:write": "prettier --write \"contracts/**/*.sol\" \"test/**/*.ts\""

@@ -75,7 +75,7 @@ contract AoNPool is Pool {
                     }
                 }
                 uint256 premium =
-                    (AoNPriceCalculator.calculateOptionPrice(
+                    AoNPriceCalculator.calculateOptionPrice(
                         _spotPrice,
                         _strike,
                         _maturity,
@@ -83,7 +83,8 @@ contract AoNPool is Pool {
                         step.stepAmount / 1e10,
                         kE8,
                         _optionType
-                    ) * 1e18) / _spotPrice;
+                    );
+                premium = (premium * 1e18) / _spotPrice;
                 premium += calculateSpread(premium);
 
                 totalPremium += premium;
@@ -196,7 +197,7 @@ contract AoNPool is Pool {
 
             {
                 uint256 premium =
-                    (AoNPriceCalculator.calculateOptionPrice(
+                    AoNPriceCalculator.calculateOptionPrice(
                         _spotPrice,
                         _strike,
                         _maturity,
@@ -204,7 +205,8 @@ contract AoNPool is Pool {
                         step.stepAmount / 1e10,
                         kE8,
                         _optionType
-                    ) * 1e18) / _spotPrice;
+                    );
+                premium = (premium * 1e18) / _spotPrice;
                 premium -= calculateSpread(premium);
 
                 totalPremium += premium;

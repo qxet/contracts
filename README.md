@@ -1,6 +1,9 @@
 Predy Pool
 =====
 
+![](https://github.com/predyprotocol/contracts/workflows/Test/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/predyprotocol/contracts/badge.svg?branch=main)](https://coveralls.io/github/predyprotocol/contracts?branch=main)
+
 Predy is an option-specific AMM protocol.
 
 # Introduction
@@ -26,7 +29,7 @@ TODO
 * Traders can buy 1 day, 1 week, or 2 week options at any time.
 * Not dependent on the IV oracle (management cannot intentionally set a low IV)
 * Can be used for more than just ETH and BTC
-* Pool is capital efficient, since liquidity is concentrated in a specific price range
+* Pool is capital efficient, since liquidity is concentrated in a specific IV range
 * Traders can formulate Call spread and Put spread strategies.
 
 ## Smart Contract

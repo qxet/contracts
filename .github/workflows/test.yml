@@ -36,4 +36,8 @@ jobs:
           npm install -g npm@latest
           npm install --frozen-lockfile
           npm run generate
-          npm run test
+          npm run test:coverage
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
