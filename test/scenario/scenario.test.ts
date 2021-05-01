@@ -17,7 +17,7 @@ const MockMarginVault = artifacts.require('MockMarginVault.sol')
 const MockChainlinkAggregator = artifacts.require('MockChainlinkAggregator.sol')
 const MockStaking = artifacts.require('MockStaking.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
-const PriceCalculator = artifacts.require('PriceCalculator.sol')
+const PriceCalculator = artifacts.require('BlackScholes.sol')
 
 contract('Scenario Test', ([alice, bob]) => {
   let weth: MockERC20Instance
@@ -34,7 +34,7 @@ contract('Scenario Test', ([alice, bob]) => {
 
   beforeEach(async () => {
     const lib = await PriceCalculator.new()
-    await Pool.link('PriceCalculator', lib.address)
+    await Pool.link('BlackScholes', lib.address)
 
     weth = await MockERC20.new('MOCK', 'MOCK')
     ethUsdAggregator = await MockChainlinkAggregator.new()
@@ -88,7 +88,7 @@ contract('Scenario Test', ([alice, bob]) => {
       await options.exerciseERC20(optionId, amount, { from: bob })
       const after2 = await weth.balanceOf(bob)
 
-      assert.equal(before1.sub(after1).toString(), '6209571778545454')
+      assert.equal(before1.sub(after1).toString(), '2647675140727271')
       assert.equal(after2.sub(before2).toString(), '2666666666666666')
     })
 
@@ -167,8 +167,8 @@ contract('Scenario Test', ([alice, bob]) => {
 
       await expectRevert(options.sellERC20Option(optionId, amount, { from: bob }), 'Pool: no enough pool')
 
-      // spot price is $2250
-      await ethUsdAggregator.setLatestAnswer(scale(2250, 8))
+      // spot price is $2230
+      await ethUsdAggregator.setLatestAnswer(scale(2230, 8))
 
       // sell option
       const before2 = await weth.balanceOf(bob)
@@ -189,8 +189,8 @@ contract('Scenario Test', ([alice, bob]) => {
       console.log(position2.toString())
       console.log(position3.toString())
 
-      assert.equal(formatEther(before1.sub(after1)), '0.045653988930666666')
-      assert.equal(formatEther(after2.sub(before2)), '0.036569940767111111')
+      assert.equal(formatEther(before1.sub(after1)), '0.025642729154666665')
+      assert.equal(formatEther(after2.sub(before2)), '0.011748292792556053')
 
       // 7 days later
       await time.increase(60 * 60 * 24 * 7 + 60)
@@ -200,7 +200,7 @@ contract('Scenario Test', ([alice, bob]) => {
       const beforeLPToken = await pool.balanceOf(alice, rangeId)
       await pool.withdrawERC20(depositAmount, rangeId, { from: alice })
       const afterLPToken = await pool.balanceOf(alice, rangeId)
-      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '9998916000000000000')
+      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '9994109000000000000')
     })
   })
 })

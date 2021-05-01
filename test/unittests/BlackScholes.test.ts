@@ -92,8 +92,8 @@ contract('BlackScholesTester', ([]) => {
       // 高い
       console.log(premiumSell.toString())
       // asserts
-      assert.equal(premiumBuy.toString(), '404636')
-      assert.equal(premiumSell.toString(), '400521')
+      assert.equal(premiumBuy.toString(), '40463600')
+      assert.equal(premiumSell.toString(), '40052100')
     })
 
     it('calculate ATM call option price', async () => {
@@ -129,8 +129,8 @@ contract('BlackScholesTester', ([]) => {
       //安い
       console.log(premiumSell.toString())
       // asserts
-      assert.equal(premiumBuy.toString(), '49136939')
-      assert.equal(premiumSell.toString(), '49143556')
+      assert.equal(premiumBuy.toString(), '4913693900')
+      assert.equal(premiumSell.toString(), '4914355600')
     })
 
     it('calculate ITM call option price', async () => {
@@ -162,8 +162,8 @@ contract('BlackScholesTester', ([]) => {
       console.log('ITM d2', d[1].toString())
       console.log('ITM diff', diff.toString())
       // asserts
-      assert.equal(premiumBuy.toString(), '202101493')
-      assert.equal(premiumSell.toString(), '202084196')
+      assert.equal(premiumBuy.toString(), '20210149300')
+      assert.equal(premiumSell.toString(), '20208419600')
     })
 
     it('reverts because of too big volatility', async () => {
@@ -176,6 +176,32 @@ contract('BlackScholesTester', ([]) => {
         tester.calculateOptionPrice(spot, strike, maturity, x0, amount, k, OptionType.Call, false),
         '0 < x0 < 1000%',
       )
+    })
+  })
+
+  describe('calStartPrice', () => {
+    // $2200
+    const spot = scale(2200, 8)
+    const maturity = 60 * 60 * 24 * 7
+    // 40%
+    const volatility = scale(40, 6)
+    const amount = scale(1, 8)
+    // 1%
+    const k = scale(1, 6)
+
+    it('calculate OTM start price', async () => {
+      // $2500
+      const strike = scale(2500, 8)
+      const k = await tester.calStartPrice(spot, strike, maturity, volatility, OptionType.Call)
+
+      assert.equal(k.toString(), '35000000')
+    })
+
+    it('calculate ATM start price', async () => {
+      // ATM
+      const strike = spot
+      const k = await tester.calStartPrice(spot, strike, maturity, volatility, OptionType.Call)
+      assert.equal(k.toString(), '4852000000')
     })
   })
 })

@@ -6,7 +6,7 @@ const PoolFactory = artifacts.require('PoolFactory');
 const Pool = artifacts.require('Pool');
 const MarginVault = artifacts.require('MarginVault');
 const PredyStaking = artifacts.require('PredyStaking');
-const PriceCalculator = artifacts.require('PriceCalculator');
+const PriceCalculator = artifacts.require('BlackScholes');
 
 module.exports = async (deployer, network) => {
     const devAccount = '0xAf388d888bC46b2d6bf2Eac43296E5D9CE2e49A5';
@@ -26,8 +26,8 @@ module.exports = async (deployer, network) => {
 
     await deployer.deploy(PriceCalculator);
     const priceCalculator = await PriceCalculator.deployed()
-    await OptionsFactory.link('PriceCalculator', priceCalculator.address)
-    await PoolFactory.link('PriceCalculator', priceCalculator.address)
+    await OptionsFactory.link('BlackScholes', priceCalculator.address)
+    await PoolFactory.link('BlackScholes', priceCalculator.address)
     await deployer.deploy(OptionsFactory);
     await deployer.deploy(PoolFactory);
     const optionsFactory = await OptionsFactory.deployed()

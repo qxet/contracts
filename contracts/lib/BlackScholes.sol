@@ -93,13 +93,10 @@ library BlackScholes {
         uint256 _spot,
         uint256 _strike,
         uint256 _maturity,
-        uint256 _volatility
+        uint256 _volatility,
+        IPriceCalculator.OptionType _optionType
     ) internal pure returns (uint256) {
-        int256 sqrtMaturity = AdvancedMath._sqrt((1e16 * int256(_maturity)) / YEAR);
-        int256 spotPerStrikeE4 = (int256(_spot) * 1e4) / int256(_strike);
-        int256 logSigE4 = AdvancedMath._logTaylor(spotPerStrikeE4);
-        int256 price = _calCall(int256(_spot), int256(_strike), logSigE4, sqrtMaturity, int256(_volatility));
-        return uint256(price);
+        return calculateOptionPrice(_spot, _strike, _maturity, _volatility, 1e8, 1e2, _optionType, true);
     }
 
     function calD1D2(
@@ -124,30 +121,27 @@ library BlackScholes {
         bool _isSell
     ) internal pure returns (uint256) {
         int256 d1E4;
-        int256 d2E4;
         int256 logSigE4;
+        int256 diff2;
         {
             int256 spotPerStrikeE4 = (_spot * 1e4) / _strike;
             logSigE4 = AdvancedMath._logTaylor(spotPerStrikeE4);
+            int256 d2E4;
             (d1E4, d2E4) = _calD1D2(logSigE4, _sqrtMaturity, _x0);
+            diff2 = d1E4 * d2E4;
         }
         {
-            int256 diff2 = d1E4 * d2E4;
             //if (_isSell) {
             if ((diff2 >= 0 && !_isSell) || (diff2 < 0 && _isSell)) {
                 // normal trapezoidal rule
-                return
-                    uint256(
-                        _calTrapezoidalRule(_spot, _strike, logSigE4, _sqrtMaturity, _x0, _x0 + (_amount * _k) / 1e8)
-                    );
+                int256 price =
+                    _calTrapezoidalRule(_spot, _strike, logSigE4, _sqrtMaturity, _x0, _x0 + (_amount * _k) / 1e8);
+                return uint256((price * 1e8) / _k);
             }
         }
         // trapezoidal rule
-        int256 nd1 = AdvancedMath.exp(-(d1E4**2) / 2);
-        return
-            uint256(
-                _calTrapezoidalRule2(_spot, _strike, logSigE4, _sqrtMaturity, _x0, _x0 + (_amount * _k) / 1e8, nd1)
-            );
+        int256 price2 = _calTrapezoidalRule2(_spot, _strike, logSigE4, _sqrtMaturity, _x0, _x0 + (_amount * _k) / 1e8);
+        return uint256((price2 * 1e8) / _k);
     }
 
     function _calD1D2(
@@ -179,11 +173,12 @@ library BlackScholes {
         int256 _logSigE4,
         int256 _sqrtMaturity,
         int256 _x0,
-        int256 _x1,
-        int256 _nd1
+        int256 _x1
     ) internal pure returns (int256) {
-        int256 start = _calCall(_spot, _strike, _logSigE4, _sqrtMaturity, _x0);
-        int256 diff1 = (_spot * _sqrtMaturity * _nd1) / (SQRT_2_PI_E8 * 1e8);
+        (int256 d1E4, int256 d2E4) = _calD1D2(_logSigE4, _sqrtMaturity, _x0);
+        int256 start = _calCallWithD(_spot, _strike, d1E4, d2E4);
+        int256 nd1 = AdvancedMath.exp(-(d1E4**2) / 2);
+        int256 diff1 = (_spot * _sqrtMaturity * nd1) / (SQRT_2_PI_E8 * 1e8);
         int256 end = start + (diff1 * (_x1 - _x0)) / 1e8;
         return (((start + end) * (_x1 - _x0)) / (2 * 1e8));
     }
@@ -197,7 +192,7 @@ library BlackScholes {
         int256 sqrtMaturity = AdvancedMath._sqrt((1e16 * int256(_maturity)) / YEAR);
         int256 spotPerStrikeE4 = (int256(_spot) * 1e4) / int256(_strike);
         int256 logSigE4 = AdvancedMath._logTaylor(spotPerStrikeE4);
-        (int256 d1E4, int256 d2E4) = _calD1D2(logSigE4, sqrtMaturity, int256(_volatility));
+        (int256 d1E4, ) = _calD1D2(logSigE4, sqrtMaturity, int256(_volatility));
         int256 nd1 = AdvancedMath.exp(-(d1E4**2) / 2);
         return (int256(_spot) * sqrtMaturity * nd1) / (SQRT_2_PI_E8 * 1e8);
     }
@@ -212,6 +207,22 @@ library BlackScholes {
         (int256 d1E4, int256 d2E4) = _calD1D2(_logSigE4, _sqrtMaturity, _volatility);
         int256 nd1E8 = AdvancedMath._calcPnorm(d1E4);
         int256 nd2E8 = AdvancedMath._calcPnorm(d2E4);
+        int256 lowestPrice = (_spot > _strike) ? (_spot - _strike) : int256(0);
+        int256 price = (_spot * nd1E8 - _strike * nd2E8) / 1e8;
+        if (price < lowestPrice) {
+            price = lowestPrice;
+        }
+        return price;
+    }
+
+    function _calCallWithD(
+        int256 _spot,
+        int256 _strike,
+        int256 _d1E4,
+        int256 _d2E4
+    ) internal pure returns (int256) {
+        int256 nd1E8 = AdvancedMath._calcPnorm(_d1E4);
+        int256 nd2E8 = AdvancedMath._calcPnorm(_d2E4);
         int256 lowestPrice = (_spot > _strike) ? (_spot - _strike) : int256(0);
         int256 price = (_spot * nd1E8 - _strike * nd2E8) / 1e8;
         if (price < lowestPrice) {

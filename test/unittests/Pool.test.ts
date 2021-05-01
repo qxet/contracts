@@ -6,7 +6,7 @@ const BN = web3.utils.BN
 
 const Pool = artifacts.require('Pool.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
-const PriceCalculator = artifacts.require('PriceCalculator.sol')
+const PriceCalculator = artifacts.require('BlackScholes.sol')
 
 interface Tick {
   supply: BN
@@ -33,7 +33,7 @@ contract('Pool', ([alice]) => {
 
   before(async () => {
     const lib = await PriceCalculator.new()
-    await Pool.link('PriceCalculator', lib.address)
+    await Pool.link('BlackScholes', lib.address)
   })
 
   beforeEach('deploy contracts', async () => {
@@ -133,9 +133,9 @@ contract('Pool', ([alice]) => {
       const tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '1.0')
-      assert.equal(formatEther(tick2.premiumPool), '0.009342272727272727')
+      assert.equal(formatEther(tick2.premiumPool), '0.003646910503636363')
       assert.equal(formatEther(tick2.lockedAmount), '1.0')
-      assert.equal(formatEther(tick2.lockedPremium), '0.009342272727272727')
+      assert.equal(formatEther(tick2.lockedPremium), '0.003646910503636363')
     })
 
     it('buy an OTM option contract for 1 ETH', async () => {
@@ -156,14 +156,14 @@ contract('Pool', ([alice]) => {
       const tick3 = await getTick(rangeStart + 1)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '1.0')
-      assert.equal(formatEther(tick2.premiumPool), '0.009174700112454544')
+      assert.equal(formatEther(tick2.premiumPool), '0.000912702713454544')
       assert.equal(formatEther(tick2.lockedAmount), '0.990991098125163761')
-      assert.equal(formatEther(tick2.lockedPremium), '0.009174700112454544')
+      assert.equal(formatEther(tick2.lockedPremium), '0.000912702713454544')
       assert.equal(formatEther(tick3.supply), '1.0')
       assert.equal(formatEther(tick3.balance), '1.0')
-      assert.equal(formatEther(tick3.premiumPool), '0.00011589149590909')
+      assert.equal(formatEther(tick3.premiumPool), '0.000015684892363635')
       assert.equal(formatEther(tick3.lockedAmount), '0.009008901874836239')
-      assert.equal(formatEther(tick3.lockedPremium), '0.00011589149590909')
+      assert.equal(formatEther(tick3.lockedPremium), '0.000015684892363635')
     })
 
     it('buy an ITM option contract for 1 ETH', async () => {
@@ -183,9 +183,9 @@ contract('Pool', ([alice]) => {
       const tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '1.0')
-      assert.equal(formatEther(tick2.premiumPool), '0.018667743569454544')
+      assert.equal(formatEther(tick2.premiumPool), '0.010046447220272727')
       assert.equal(formatEther(tick2.lockedAmount), '1.0')
-      assert.equal(formatEther(tick2.lockedPremium), '0.018667743569454544')
+      assert.equal(formatEther(tick2.lockedPremium), '0.010046447220272727')
     })
 
     it('reverts because amount is too big', async () => {
@@ -203,8 +203,8 @@ contract('Pool', ([alice]) => {
   describe('sell', () => {
     // 2 ETH
     const depositAmount = scale(2, 18)
-    const rangeStart = 2
-    const rangeEnd = 4
+    const rangeStart = 6
+    const rangeEnd = 8
     const spot = new BN(2200).mul(new BN('10').pow(new BN('8')))
     // buy option
     const optionId = 1
@@ -224,7 +224,7 @@ contract('Pool', ([alice]) => {
     it('sell option', async () => {
       // sell
       const beforeBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
-      const maturity = 60 * 60 * 24 * 6
+      const maturity = 60 * 60 * 24 * 5
       await pool.sell(optionId, spot, amount, maturity, strike, OptionType.Call)
       const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
 
@@ -233,9 +233,9 @@ contract('Pool', ([alice]) => {
       const tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '1.0')
-      assert.equal(formatEther(tick2.premiumPool), '0.000717325637454545')
+      assert.equal(formatEther(tick2.premiumPool), '0.002736754720999999')
       assert.equal(formatEther(tick2.lockedAmount), '0.0')
-      assert.equal(formatEther(tick2.lockedPremium), '0.000717325637454545')
+      assert.equal(formatEther(tick2.lockedPremium), '0.002736754720999999')
     })
 
     it('reverts because there are no enough pool balance', async () => {
@@ -243,10 +243,7 @@ contract('Pool', ([alice]) => {
       const amount = scale(2, 18)
       const maturity = 60 * 60 * 24 * 6
       // assertion
-      await expectRevert(
-        pool.sell(optionId, spot, amount, maturity, strike, OptionType.Call),
-        'Pool: 1. tick must be positive',
-      )
+      await expectRevert(pool.sell(optionId, spot, amount, maturity, strike, OptionType.Call), 'Pool: no enough pool')
     })
 
     it('reverts because there are no enough premium pool', async () => {
@@ -341,13 +338,13 @@ contract('Pool', ([alice]) => {
 
       // asserts
       // 0.9 ETH
-      assert.equal(formatEther(afterBalance.sub(beforeBalance)), '0.454671136363636363')
+      assert.equal(formatEther(afterBalance.sub(beforeBalance)), '0.451823455251818181')
       let tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '0.95')
-      assert.equal(formatEther(tick2.premiumPool), '0.009342272727272727')
+      assert.equal(formatEther(tick2.premiumPool), '0.003646910503636363')
       assert.equal(formatEther(tick2.lockedAmount), '0.5')
-      assert.equal(formatEther(tick2.lockedPremium), '0.004671136363636364')
+      assert.equal(formatEther(tick2.lockedPremium), '0.001823455251818182')
 
       await time.increase(60 * 60 * 24 * 7)
 
@@ -357,11 +354,11 @@ contract('Pool', ([alice]) => {
 
       // asserts
       // 0.9 ETH
-      assert.equal(formatEther(afterBalance2.sub(beforeBalance2)), '0.504671136363636364')
+      assert.equal(formatEther(afterBalance2.sub(beforeBalance2)), '0.501823455251818182')
       tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '0.95')
-      assert.equal(formatEther(tick2.premiumPool), '0.009342272727272727')
+      assert.equal(formatEther(tick2.premiumPool), '0.003646910503636363')
       assert.equal(formatEther(tick2.lockedAmount), '0.0')
       assert.equal(formatEther(tick2.lockedPremium), '0.0')
     })

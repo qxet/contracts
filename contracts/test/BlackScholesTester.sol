@@ -35,4 +35,14 @@ contract BlackScholesTester {
     ) external pure returns (int256) {
         return BlackScholes.calDiff(_spot, _strike, _maturity, _x0);
     }
+
+    function calStartPrice(
+        uint256 _spot,
+        uint256 _strike,
+        uint256 _maturity,
+        uint256 _iv,
+        IPriceCalculator.OptionType _optionType
+    ) external pure returns (uint256) {
+        return BlackScholes.calStartPrice(_spot, _strike, _maturity, _iv, _optionType);
+    }
 }

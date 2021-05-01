@@ -26,6 +26,7 @@ module.exports = {
       artifactType: 'truffle-v5',
       excludeContracts: ['Migrations'],
       showTimeSpent: true,
+      currency: 'USD'
     },
   },
 }
