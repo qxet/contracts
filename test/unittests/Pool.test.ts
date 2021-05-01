@@ -261,7 +261,7 @@ contract('Pool', ([alice]) => {
     })
   })
 
-  describe('exercise', () => {
+  describe('exercise and unlock', () => {
     // 2 ETH
     const depositAmount = scale(2, 18)
     const rangeStart = 2
@@ -271,6 +271,7 @@ contract('Pool', ([alice]) => {
     const optionId = 1
     const amount = scale(1, 18)
     const strike = new BN(2200).mul(new BN('10').pow(new BN('8')))
+    let premium: BN
 
     beforeEach(async () => {
       weth.mint(alice, depositAmount)
@@ -279,23 +280,27 @@ contract('Pool', ([alice]) => {
 
       // buy option
       const maturity = 60 * 60 * 24 * 7
+      const result = await pool.buy.call(optionId, spot, amount, maturity, strike, OptionType.Call)
       await pool.buy(optionId, spot, amount, maturity, strike, OptionType.Call)
+      premium = result[0]
     })
 
     it('exercise options and fail to unlock', async () => {
       const payout = scale(1, 17)
-      // sell
+
+      // exercise
       const beforeBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
       await pool.exercise(optionId, amount, payout)
       const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
 
       // asserts
       // 0.9 ETH
-      assert.equal(formatEther(afterBalance.sub(beforeBalance)), '0.909342272727272727')
+      const expectedAvailableBalance = amount.sub(payout).add(premium)
+      assert.equal(afterBalance.sub(beforeBalance).toString(), expectedAvailableBalance.toString())
       let tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '0.9')
-      assert.equal(formatEther(tick2.premiumPool), '0.009342272727272727')
+      assert.equal(tick2.premiumPool.toString(), premium.toString())
       assert.equal(formatEther(tick2.lockedAmount), '0.0')
       assert.equal(formatEther(tick2.lockedPremium), '0.0')
 
@@ -308,18 +313,19 @@ contract('Pool', ([alice]) => {
     it('unlock options', async () => {
       await time.increase(60 * 60 * 24 * 7 + 60)
 
-      // sell
+      // unlock
       const beforeBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
       await pool.unlock(optionId)
       const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
 
       // asserts
       // 0.9 ETH
-      assert.equal(formatEther(afterBalance.sub(beforeBalance)), '1.009342272727272727')
+      const expectedAvailableBalance = amount.add(premium)
+      assert.equal(afterBalance.sub(beforeBalance).toString(), expectedAvailableBalance.toString())
       let tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '1.0')
-      assert.equal(formatEther(tick2.premiumPool), '0.009342272727272727')
+      assert.equal(tick2.premiumPool.toString(), premium.toString())
       assert.equal(formatEther(tick2.lockedAmount), '0.0')
       assert.equal(formatEther(tick2.lockedPremium), '0.0')
     })
@@ -327,7 +333,8 @@ contract('Pool', ([alice]) => {
     it('unlock partially', async () => {
       const payout = scale(5, 16)
       const halfAmount = amount.div(new BN(2))
-      // sell
+
+      // exercise
       const beforeBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
       await pool.exercise(optionId, halfAmount, payout)
       const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)

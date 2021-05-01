@@ -242,7 +242,7 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
         uint256 _expiry,
         uint256 _strike,
         IPriceCalculator.OptionType _optionType
-    ) public pure returns (uint256) {
+    ) internal pure returns (uint256) {
         return pack(_expiry, _strike, _optionType);
     }
 
