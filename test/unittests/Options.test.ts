@@ -6,7 +6,7 @@ import {
   MockERC20Instance,
   MockMarginVaultInstance,
 } from '../../build/types/truffle-types'
-const { expectRevert } = require('@openzeppelin/test-helpers')
+const { expectRevert, time } = require('@openzeppelin/test-helpers')
 
 const BN = web3.utils.BN
 
@@ -87,23 +87,28 @@ contract('Options', ([alice]) => {
     // 0.1 ETH
     const amount = new BN(1).mul(new BN('10').pow(new BN('17')))
     const strike = new BN(2000).mul(new BN('10').pow(new BN('8')))
+    let optionId: BN
 
-    it('sell option', async () => {
+    beforeEach(async () => {
       // set up preconditions
       weth.mint(alice, amount)
       weth.approve(options.address, amount, { from: alice })
-      const id = await options.buyERC20Option.call(maturity, strike, amount)
+      const result = await options.buyERC20Option(maturity, strike, amount, { from: alice })
+      optionId = result.logs[1].args.optionId
+    })
 
-      const balance1 = await options.balanceOf(alice, id)
-      await options.buyERC20Option(maturity, strike, amount, { from: alice })
-      const balance2 = await options.balanceOf(alice, id)
-
+    it('sell option', async () => {
       // sell
-      await options.sellERC20Option(id, amount, { from: alice })
-      const balance3 = await options.balanceOf(alice, id)
+      const balance1 = await options.balanceOf(alice, optionId)
+      await options.sellERC20Option(optionId, amount, { from: alice })
+      const balance2 = await options.balanceOf(alice, optionId)
 
-      assert.equal(balance2.sub(balance1).toString(), amount.toString())
-      assert.equal(balance2.sub(balance3).toString(), amount.toString())
+      assert.equal(balance1.sub(balance2).toString(), amount.toString())
+    })
+
+    it('reverts because option is expired', async () => {
+      await time.increase(maturity + 60)
+      await expectRevert(options.exerciseERC20(optionId, amount), 'Options: option expired')
     })
   })
 
@@ -111,16 +116,24 @@ contract('Options', ([alice]) => {
     // 0.1 ETH
     const amount = new BN(1).mul(new BN('10').pow(new BN('17')))
     const strike = new BN(1800).mul(new BN('10').pow(new BN('8')))
+    let optionId: BN
 
-    it('exercise option', async () => {
+    beforeEach(async () => {
       // set up preconditions
       weth.mint(mockPool.address, amount)
       weth.mint(alice, amount)
       weth.approve(options.address, amount, { from: alice })
-      const id = await options.buyERC20Option.call(maturity, strike, amount)
-      await options.buyERC20Option(maturity, strike, amount)
-      // sell
-      await options.exerciseERC20(id, amount)
+      const result = await options.buyERC20Option(maturity, strike, amount, { from: alice })
+      optionId = result.logs[1].args.optionId
+    })
+
+    it('exercise option', async () => {
+      await options.exerciseERC20(optionId, amount)
+    })
+
+    it('reverts because option is expired', async () => {
+      await time.increase(maturity + 60)
+      await expectRevert(options.exerciseERC20(optionId, amount), 'Options: option expired')
     })
   })
 })
