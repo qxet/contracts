@@ -18,7 +18,6 @@ contract Pool is IPool, ERC1155, Ownable {
     // tickId => tick object
     mapping(uint256 => Tick) public ticks;
     // maturity => moneyness => position
-    // mapping(uint256 => mapping(uint256 => uint256)) public positions;
     uint64[5][3] public positions;
     // locked option id => locked option
     mapping(uint256 => IPool.LockedOption) public locks;
@@ -387,8 +386,6 @@ contract Pool is IPool, ERC1155, Ownable {
     function unlock(uint256 _id) external override(IPool) onlyOwner {
         LockedOption storage option = locks[_id];
         require(option.amount > 0, "Pool: no amount left");
-        //IOptions.OptionSeries memory series = unpack(_id);
-        //require(series.expiry < block.timestamp, "Pool: option must be expired");
 
         /*
         for (uint256 i = 0; i < option.shorts.length; i++) {

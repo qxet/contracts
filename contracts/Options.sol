@@ -264,17 +264,7 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
         uint64 _strike,
         IPriceCalculator.OptionType _optionType
     ) internal pure returns (uint256) {
-        require(_strike % 1e6 == 0, "PackLib");
         return uint256(keccak256(abi.encodePacked(_expiry, _strike, _optionType)));
-        //        uint256 optionType = uint256(_optionType);
-        //        return uint256(_strike / 1e6) + uint256(_expiry << (8 * 8)) + uint256(optionType << (16 * 8));
-    }
-
-    function unpack(uint256 _packed) internal pure returns (OptionSeries memory) {
-        uint256 optionType = uint256(_packed >> (16 * 8));
-        uint64 expiry = uint64((_packed - (optionType << (16 * 8))) >> (8 * 8));
-        uint64 strike = uint64(_packed - (optionType << (16 * 8)) - (expiry << (8 * 8)));
-        return OptionSeries(expiry, strike * 1e6, IPriceCalculator.OptionType(optionType));
     }
 
     /**

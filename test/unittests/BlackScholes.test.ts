@@ -92,7 +92,7 @@ contract('BlackScholesTester', ([]) => {
       // 高い
       console.log(premiumSell.toString())
       // asserts
-      assert.equal(premiumBuy.toString(), '40463600')
+      assert.equal(premiumBuy.toString(), '40455000')
       assert.equal(premiumSell.toString(), '40052100')
     })
 
@@ -129,7 +129,7 @@ contract('BlackScholesTester', ([]) => {
       //安い
       console.log(premiumSell.toString())
       // asserts
-      assert.equal(premiumBuy.toString(), '4913693900')
+      assert.equal(premiumBuy.toString(), '4913640000')
       assert.equal(premiumSell.toString(), '4914355600')
     })
 
@@ -162,7 +162,7 @@ contract('BlackScholesTester', ([]) => {
       console.log('ITM d2', d[1].toString())
       console.log('ITM diff', diff.toString())
       // asserts
-      assert.equal(premiumBuy.toString(), '20210149300')
+      assert.equal(premiumBuy.toString(), '20210063000')
       assert.equal(premiumSell.toString(), '20208419600')
     })
 
