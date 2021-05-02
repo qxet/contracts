@@ -77,6 +77,8 @@ contract MockPool is IPool, ERC20 {
 
     function exercisePoolLongs(uint256 _id, uint256 _profit) external override(IPool) {}
 
+    function unlock(uint256 _id) external override(IPool) {}
+
     function sendERC20(address _to, uint256 _amount) external override(IPool) {
         IERC20 token = IERC20(asset);
         token.transfer(_to, _amount);

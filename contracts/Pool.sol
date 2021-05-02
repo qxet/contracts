@@ -384,11 +384,11 @@ contract Pool is IPool, ERC1155, Ownable {
     /**
      * @notice unlock funds after expiration
      */
-    function unlock(uint256 _id) external {
+    function unlock(uint256 _id) external override(IPool) onlyOwner {
         LockedOption storage option = locks[_id];
         require(option.amount > 0, "Pool: no amount left");
-        IOptions.OptionSeries memory series = unpack(_id);
-        require(series.expiry < block.timestamp, "Pool: option must be expired");
+        //IOptions.OptionSeries memory series = unpack(_id);
+        //require(series.expiry < block.timestamp, "Pool: option must be expired");
 
         /*
         for (uint256 i = 0; i < option.shorts.length; i++) {
@@ -569,8 +569,8 @@ contract Pool is IPool, ERC1155, Ownable {
 
     function unpack(uint256 _packed) internal pure returns (IOptions.OptionSeries memory) {
         uint256 optionType = uint256(_packed >> (16 * 8));
-        uint256 expiry = uint256((_packed - (optionType << (16 * 8))) >> (8 * 8));
-        uint256 strike = uint256(_packed - (optionType << (16 * 8)) - (expiry << (8 * 8)));
+        uint64 expiry = uint64((_packed - (optionType << (16 * 8))) >> (8 * 8));
+        uint64 strike = uint64(_packed - (optionType << (16 * 8)) - (expiry << (8 * 8)));
         return IOptions.OptionSeries(expiry, strike * 1e6, IPriceCalculator.OptionType(optionType));
     }
 

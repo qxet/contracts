@@ -6,6 +6,7 @@ import {
   MockERC20Instance,
   MockMarginVaultInstance,
 } from '../../build/types/truffle-types'
+import { OptionType } from '../utils'
 const { expectRevert, time } = require('@openzeppelin/test-helpers')
 
 const BN = web3.utils.BN
@@ -134,6 +135,17 @@ contract('Options', ([alice]) => {
     it('reverts because option is expired', async () => {
       await time.increase(maturity + 60)
       await expectRevert(options.exerciseERC20(optionId, amount), 'Options: option expired')
+    })
+  })
+
+  describe('storeOption', () => {
+    // 0.1 ETH
+    const strike = new BN(1800).mul(new BN('10').pow(new BN('8')))
+
+    it('generate id', async () => {
+      const expiry = await time.latest()
+      const id = await options.storeOption(expiry, strike, OptionType.Call)
+      console.log(id.toString())
     })
   })
 })

@@ -5,8 +5,8 @@ import "./IPriceCalculator.sol";
 
 interface IOptions {
     struct OptionSeries {
-        uint256 expiry;
-        uint256 strike;
+        uint64 expiry;
+        uint64 strike;
         IPriceCalculator.OptionType optionType;
     }
 }

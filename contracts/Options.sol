@@ -23,6 +23,7 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
     IStaking feeRecepient;
 
     address asset;
+    mapping(uint256 => OptionSeries) serieses;
 
     event OptionBought(uint256 optionId, uint256 amount, uint256 premium, uint256 protocolFee);
     event OptionSold(uint256 optionId, uint256 amount, uint256 premium);
@@ -162,6 +163,12 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
         _burn(address(this), _optionId, _amount);
     }
 
+    function unlock(uint256 _optionId) public {
+        OptionSeries memory option = getOption(_optionId);
+        require(option.expiry < block.timestamp, "Options: option must be expired");
+        pool.unlock(_optionId);
+    }
+
     /**
      * @notice write new option with option collateral from pool
      * @param _longId long option id
@@ -191,7 +198,7 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
                 _longId,
                 shortId,
                 long,
-                OptionSeries(_maturity + block.timestamp, _strike, long.optionType),
+                OptionSeries(uint64(_maturity + block.timestamp), uint64(_strike), long.optionType),
                 _amount
             );
 
@@ -242,28 +249,31 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
         uint256 _expiry,
         uint256 _strike,
         IPriceCalculator.OptionType _optionType
-    ) internal pure returns (uint256) {
-        return pack(_expiry, _strike, _optionType);
+    ) public returns (uint256) {
+        uint256 id = pack(uint64(_expiry), uint64(_strike), _optionType);
+        serieses[id] = OptionSeries(uint64(_expiry), uint64(_strike), _optionType);
+        return id;
     }
 
-    function getOption(uint256 _id) public pure returns (OptionSeries memory) {
-        return unpack(_id);
+    function getOption(uint256 _id) public view returns (OptionSeries memory) {
+        return serieses[_id];
     }
 
     function pack(
-        uint256 _expiry,
-        uint256 _strike,
+        uint64 _expiry,
+        uint64 _strike,
         IPriceCalculator.OptionType _optionType
     ) internal pure returns (uint256) {
         require(_strike % 1e6 == 0, "PackLib");
-        uint256 optionType = uint256(_optionType);
-        return uint256(_strike / 1e6) + uint256(_expiry << (8 * 8)) + uint256(optionType << (16 * 8));
+        return uint256(keccak256(abi.encodePacked(_expiry, _strike, _optionType)));
+        //        uint256 optionType = uint256(_optionType);
+        //        return uint256(_strike / 1e6) + uint256(_expiry << (8 * 8)) + uint256(optionType << (16 * 8));
     }
 
     function unpack(uint256 _packed) internal pure returns (OptionSeries memory) {
         uint256 optionType = uint256(_packed >> (16 * 8));
-        uint256 expiry = uint256((_packed - (optionType << (16 * 8))) >> (8 * 8));
-        uint256 strike = uint256(_packed - (optionType << (16 * 8)) - (expiry << (8 * 8)));
+        uint64 expiry = uint64((_packed - (optionType << (16 * 8))) >> (8 * 8));
+        uint64 strike = uint64(_packed - (optionType << (16 * 8)) - (expiry << (8 * 8)));
         return OptionSeries(expiry, strike * 1e6, IPriceCalculator.OptionType(optionType));
     }
 

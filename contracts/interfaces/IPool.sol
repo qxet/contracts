@@ -59,6 +59,8 @@ interface IPool {
 
     function exercisePoolLongs(uint256 _id, uint256 _spot) external;
 
+    function unlock(uint256 _id) external;
+
     function receiveERC20(address _account, uint256 _amount) external;
 
     function sendERC20(address _to, uint256 _amount) external;
