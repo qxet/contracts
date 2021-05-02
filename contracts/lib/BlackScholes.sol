@@ -38,7 +38,7 @@ library BlackScholes {
         require(0 < _x0 && _x0 < 10 * 1e8, "0 < x0 < 1000%");
         require(_amount > 0, "_amount > 0");
         require(0 < _k, "0 < _k");
-        int256 sqrtMaturity = AdvancedMath._sqrt((1e16 * int256(_maturity)) / YEAR);
+        int256 sqrtMaturity = (AdvancedMath._sqrt(int256(_maturity)) * 1e16) / SQRT_YEAR_E8;
 
         if (_optionType == IPriceCalculator.OptionType.Call) {
             return
