@@ -108,7 +108,7 @@ contract AoNPool is Pool {
                 state.premiumPool += premium;
             }
 
-            setPosition(_maturity, (100 * _strike) / _spotPrice, step.position);
+            setPosition(_maturity, (100 * _strike) / _spotPrice, uint64(step.position));
         }
 
         if (locks[_optionId].amount > 0) {
@@ -223,7 +223,7 @@ contract AoNPool is Pool {
 
         {
             uint256 moneyness = (100 * _strike) / _spotPrice;
-            setPosition(_maturity, moneyness, step.position);
+            setPosition(_maturity, moneyness, uint64(step.position));
         }
     }
 }

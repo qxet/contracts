@@ -344,7 +344,7 @@ contract('Pool', ([alice]) => {
       assert.equal(formatEther(tick2.balance), '0.95')
       assert.equal(formatEther(tick2.premiumPool), '0.00364566258')
       assert.equal(formatEther(tick2.lockedAmount), '0.5')
-      assert.equal(formatEther(tick2.lockedPremium), '0.001823455251818182')
+      assert.equal(formatEther(tick2.lockedPremium), '0.00182283129')
 
       await time.increase(60 * 60 * 24 * 7)
 
@@ -354,11 +354,11 @@ contract('Pool', ([alice]) => {
 
       // asserts
       // 0.9 ETH
-      assert.equal(formatEther(afterBalance2.sub(beforeBalance2)), '0.501823455251818182')
+      assert.equal(formatEther(afterBalance2.sub(beforeBalance2)), '0.50182283129')
       tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '0.95')
-      assert.equal(formatEther(tick2.premiumPool), '0.003646910503636363')
+      assert.equal(formatEther(tick2.premiumPool), '0.00364566258')
       assert.equal(formatEther(tick2.lockedAmount), '0.0')
       assert.equal(formatEther(tick2.lockedPremium), '0.0')
     })

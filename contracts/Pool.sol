@@ -13,12 +13,13 @@ import "./lib/AdvancedMath.sol";
  * @notice Pool contract manages the pool of funds to write options
  */
 contract Pool is IPool, ERC1155, Ownable {
-    address asset;
+    address immutable asset;
 
     // tickId => tick object
     mapping(uint256 => Tick) public ticks;
     // maturity => moneyness => position
-    mapping(uint256 => mapping(uint256 => uint256)) public positions;
+    // mapping(uint256 => mapping(uint256 => uint256)) public positions;
+    uint64[5][3] public positions;
     // locked option id => locked option
     mapping(uint256 => IPool.LockedOption) public locks;
 
@@ -210,7 +211,7 @@ contract Pool is IPool, ERC1155, Ownable {
                 state.premiumPool += premium;
             }
 
-            setPosition(_maturity, (100 * _strike) / _spotPrice, step.position);
+            setPosition(_maturity, (100 * _strike) / _spotPrice, uint64(step.position));
         }
 
         if (locks[_optionId].amount > 0) {
@@ -319,7 +320,7 @@ contract Pool is IPool, ERC1155, Ownable {
 
         {
             uint256 moneyness = (100 * _strike) / _spotPrice;
-            setPosition(_maturity, moneyness, step.position);
+            setPosition(_maturity, moneyness, uint64(step.position));
         }
     }
 
@@ -477,26 +478,14 @@ contract Pool is IPool, ERC1155, Ownable {
     function setPosition(
         uint256 _m,
         uint256 _moneyness,
-        uint256 _newIV
+        uint64 _newIV
     ) internal {
         (uint256 maturity, uint256 moneyness) = _calMaturityAndMoneyness(_m, _moneyness);
-        positions[maturity][moneyness] = _newIV;
-        if (moneyness == 0) {
+        if (moneyness <= 4) {
             positions[maturity][moneyness] = _newIV;
-        } else if (moneyness == 1) {
-            positions[maturity][0] = _newIV;
-            positions[maturity][1] = _newIV;
-        } else if (moneyness == 2) {
-            positions[maturity][1] = _newIV;
-            positions[maturity][2] = _newIV;
-        } else if (moneyness == 3) {
-            positions[maturity][2] = _newIV;
-            positions[maturity][3] = _newIV;
-        } else if (moneyness == 4) {
-            positions[maturity][3] = _newIV;
-            positions[maturity][4] = _newIV;
-        } else if (moneyness == 5) {
-            positions[maturity][4] = _newIV;
+        }
+        if (moneyness >= 1) {
+            positions[maturity][moneyness - 1] = _newIV;
         }
     }
 
@@ -508,14 +497,9 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 iv;
         if (moneyness == 0) {
             iv = positions[maturity][0];
-        } else if (moneyness == 1) {
-            iv = positions[maturity][0] + ((_moneyness - 85) * (positions[maturity][1] - positions[maturity][0])) / 6;
-        } else if (moneyness == 2) {
-            iv = positions[maturity][1] + ((_moneyness - 91) * (positions[maturity][2] - positions[maturity][1])) / 6;
-        } else if (moneyness == 3) {
-            iv = positions[maturity][2] + ((_moneyness - 97) * (positions[maturity][3] - positions[maturity][2])) / 6;
-        } else if (moneyness == 4) {
-            iv = positions[maturity][3] + ((_moneyness - 103) * (positions[maturity][4] - positions[maturity][3])) / 6;
+        } else if (1 <= moneyness && moneyness <= 4) {
+            uint64 prePos = positions[maturity][moneyness - 1];
+            iv = prePos + ((_moneyness - getSeparation(moneyness)) * (positions[maturity][moneyness] - prePos)) / 6;
         } else if (moneyness == 5) {
             iv = positions[maturity][4];
         }
@@ -523,6 +507,20 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 rest = sqrtIV % 1e3;
         uint256 tick = (sqrtIV - rest) / 1e3;
         return (tick, iv);
+    }
+
+    function getSeparation(uint256 moneyness) internal pure returns (uint256) {
+        if (moneyness == 1) {
+            return 85;
+        } else if (moneyness == 2) {
+            return 91;
+        } else if (moneyness == 3) {
+            return 97;
+        } else if (moneyness == 4) {
+            return 103;
+        } else if (moneyness == 5) {
+            return 109;
+        }
     }
 
     function _calMaturityAndMoneyness(uint256 _m, uint256 _moneyness) internal pure returns (uint256, uint256) {
@@ -557,14 +555,6 @@ contract Pool is IPool, ERC1155, Ownable {
 
     function divUint256(uint256 a, uint256 b) internal pure returns (uint256) {
         return (a * uint256(1e8)) / b;
-    }
-
-    function mulInt256(int256 a, int256 b) internal pure returns (int256) {
-        return ((a * b) / 1e8);
-    }
-
-    function divInt256(int256 a, int256 b) internal pure returns (int256) {
-        return (a * int256(1e8)) / b;
     }
 
     // Range
