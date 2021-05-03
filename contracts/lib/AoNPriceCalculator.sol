@@ -40,7 +40,7 @@ library AoNPriceCalculator {
         require(0 < _k, "0 < _k");
         int256 sqrtMaturity = (AdvancedMath._sqrt(int256(_maturity)) * 1e16) / SQRT_YEAR_E8;
 
-        if (_optionType == IPriceCalculator.OptionType.Call) {
+        if (_optionType == IPriceCalculator.OptionType.CashOrNothingCall) {
             return
                 calculateCallOptionPrice(
                     int256(_spot),
@@ -52,7 +52,7 @@ library AoNPriceCalculator {
                     _isSell,
                     false
                 );
-        } else if (_optionType == IPriceCalculator.OptionType.Put) {
+        } else if (_optionType == IPriceCalculator.OptionType.CashOrNothingPut) {
             return
                 calculateCallOptionPrice(
                     int256(_spot),
