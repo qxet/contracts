@@ -52,8 +52,8 @@ contract('AoNPriceCalculator', ([]) => {
         console.log(premiumBuy.toString())
         console.log(premiumSell.toString())
         // asserts
-        assert.equal(premiumBuy.toString(), '5691500')
-        assert.equal(premiumSell.toString(), '1240200')
+        assert.equal(premiumBuy.toString(), '1240200')
+        assert.equal(premiumSell.toString(), '1198900')
       })
 
       it('calculate ATM call option price', async () => {
@@ -82,7 +82,7 @@ contract('AoNPriceCalculator', ([]) => {
         console.log(premiumBuy.toString())
         console.log(premiumSell.toString())
         // asserts
-        assert.equal(premiumBuy.toString(), '111796200')
+        assert.equal(premiumBuy.toString(), '51108500')
         assert.equal(premiumSell.toString(), '51114900')
       })
 
@@ -110,8 +110,8 @@ contract('AoNPriceCalculator', ([]) => {
           true,
         )
         // asserts
-        assert.equal(premiumBuy.toString(), '96184700')
-        assert.equal(premiumSell.toString(), '108494200')
+        assert.equal(premiumBuy.toString(), '96264200')
+        assert.equal(premiumSell.toString(), '96184700')
       })
 
       it('reverts because of too big volatility', async () => {
@@ -154,7 +154,7 @@ contract('AoNPriceCalculator', ([]) => {
         console.log(premiumBuy.toString())
         console.log(premiumSell.toString())
         // asserts
-        assert.equal(premiumBuy.toString(), '103389600')
+        assert.equal(premiumBuy.toString(), '98897000')
         assert.equal(premiumSell.toString(), '98759700')
       })
 
@@ -184,8 +184,8 @@ contract('AoNPriceCalculator', ([]) => {
         console.log(premiumBuy.toString())
         console.log(premiumSell.toString())
         // asserts
-        assert.equal(premiumBuy.toString(), '109594300')
-        assert.equal(premiumSell.toString(), '48885000')
+        assert.equal(premiumBuy.toString(), '48885000')
+        assert.equal(premiumSell.toString(), '48906600')
       })
 
       it('calculate ITM put option price', async () => {
@@ -213,7 +213,7 @@ contract('AoNPriceCalculator', ([]) => {
         )
         // asserts
         assert.equal(premiumBuy.toString(), '3815200')
-        assert.equal(premiumSell.toString(), '15774500')
+        assert.equal(premiumSell.toString(), '3544500')
       })
     })
   })
