@@ -129,6 +129,7 @@ contract('AoNPool', ([alice]) => {
     const optionId = 1
     const amount = scale(1, 18)
     const strike = new BN(2200).mul(new BN('10').pow(new BN('8')))
+    const maturity = 60 * 60 * 24 * 7
 
     beforeEach(async () => {
       weth.mint(alice, depositAmount)
@@ -136,14 +137,12 @@ contract('AoNPool', ([alice]) => {
       await pool.depositERC20(depositAmount, rangeStart, rangeEnd)
 
       // buy option
-      const maturity = 60 * 60 * 24 * 7
       await pool.buy(optionId, spot, amount, maturity, strike, OptionType.CashOrNothingCall)
     })
 
     it('sell option', async () => {
       // sell
       const beforeBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
-      const maturity = 60 * 60 * 24 * 5
       await pool.sell(optionId, spot, amount, maturity, strike, OptionType.CashOrNothingCall)
       const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
 
@@ -152,9 +151,9 @@ contract('AoNPool', ([alice]) => {
       const tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '1.0')
-      assert.equal(formatEther(tick2.premiumPool), '0.000009348036090908')
+      assert.equal(formatEther(tick2.premiumPool), '0.000008477622363636')
       assert.equal(formatEther(tick2.lockedAmount), '0.0')
-      assert.equal(formatEther(tick2.lockedPremium), '0.000009348036090908')
+      assert.equal(formatEther(tick2.lockedPremium), '0.000008477622363636')
     })
 
     it('reverts because there are no enough pool balance', async () => {
