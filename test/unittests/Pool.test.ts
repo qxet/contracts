@@ -129,7 +129,7 @@ contract('Pool', ([alice]) => {
       const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
 
       // asserts
-      assert.equal(beforeBalance.sub(afterBalance).toString(), depositAmount.sub(amount).toString())
+      assert.equal(beforeBalance.sub(afterBalance).toString(), amount.toString())
       const tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '1.0')
@@ -151,7 +151,7 @@ contract('Pool', ([alice]) => {
       const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
 
       // asserts
-      assert.equal(beforeBalance.sub(afterBalance).toString(), depositAmount.sub(amount).toString())
+      assert.equal(beforeBalance.sub(afterBalance).toString(), amount.toString())
       const tick2 = await getTick(rangeStart)
       const tick3 = await getTick(rangeStart + 1)
       assert.equal(formatEther(tick2.supply), '1.0')
@@ -179,13 +179,35 @@ contract('Pool', ([alice]) => {
       const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
 
       // asserts
-      assert.equal(beforeBalance.sub(afterBalance).toString(), depositAmount.sub(amount).toString())
+      assert.equal(beforeBalance.sub(afterBalance).toString(), amount.toString())
       const tick2 = await getTick(rangeStart)
       assert.equal(formatEther(tick2.supply), '1.0')
       assert.equal(formatEther(tick2.balance), '1.0')
       assert.equal(formatEther(tick2.premiumPool), '0.010034615313')
       assert.equal(formatEther(tick2.lockedAmount), '1.0')
       assert.equal(formatEther(tick2.lockedPremium), '0.010034615313')
+    })
+
+    it('buy an ATM option contract for 2 ETH', async () => {
+      // set up preconditions
+      const optionId = 1
+      const strike = new BN(2200).mul(new BN('10').pow(new BN('8')))
+      const amount = scale(2, 18)
+      const maturity = 60 * 60 * 24 * 7
+
+      // buy
+      const beforeBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
+      await pool.buy(optionId, spot, amount, maturity, strike, OptionType.Call)
+      const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
+
+      // asserts
+      assert.equal(beforeBalance.sub(afterBalance).toString(), amount.toString())
+      const tick2 = await getTick(rangeStart)
+      assert.equal(formatEther(tick2.supply), '1.0')
+      assert.equal(formatEther(tick2.balance), '1.0')
+      assert.equal(formatEther(tick2.premiumPool), '0.00364566258')
+      assert.equal(formatEther(tick2.lockedAmount), '1.0')
+      assert.equal(formatEther(tick2.lockedPremium), '0.00364566258')
     })
 
     it('reverts because amount is too big', async () => {
