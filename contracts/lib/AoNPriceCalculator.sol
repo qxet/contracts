@@ -40,7 +40,7 @@ library AoNPriceCalculator {
         require(0 < _k, "0 < _k");
         int256 sqrtMaturity = (AdvancedMath._sqrt(int256(_maturity)) * 1e16) / SQRT_YEAR_E8;
 
-        if (_optionType == IPriceCalculator.OptionType.Call) {
+        if (_optionType == IPriceCalculator.OptionType.CashOrNothingCall) {
             return
                 calculateCallOptionPrice(
                     int256(_spot),
@@ -52,7 +52,7 @@ library AoNPriceCalculator {
                     _isSell,
                     false
                 );
-        } else if (_optionType == IPriceCalculator.OptionType.Put) {
+        } else if (_optionType == IPriceCalculator.OptionType.CashOrNothingPut) {
             return
                 calculateCallOptionPrice(
                     int256(_spot),
@@ -98,9 +98,9 @@ library AoNPriceCalculator {
             int256 d2E4;
             (d1E4, d2E4) = _calD1D2(logSigE4, _sqrtMaturity, _x0);
             if (_isPut) {
-                diff2 = d1E4 + d2E4 + d1E4 * d1E4 * d2E4;
+                diff2 = d1E4 - d2E4 + d1E4 * d2E4 * d2E4;
             } else {
-                diff2 = -d1E4 - d2E4 + d1E4 * d1E4 * d2E4;
+                diff2 = -d1E4 + d2E4 - d1E4 * d2E4 * d2E4;
             }
         }
         {
@@ -145,10 +145,10 @@ library AoNPriceCalculator {
         int256 _x1,
         bool _isPut
     ) internal pure returns (int256) {
-        (int256 d1E4, ) = _calD1D2(_logSigE4, _sqrtMaturity, _x0);
+        (int256 d1E4, int256 d2E4) = _calD1D2(_logSigE4, _sqrtMaturity, _x0);
         int256 start = _calAoNOptionPriceWithD(d1E4, _isPut);
         int256 nd1 = AdvancedMath.exp(-(d1E4**2) / 2);
-        int256 diff1 = (_spot * _sqrtMaturity * nd1) / (SQRT_2_PI_E8 * 1e8);
+        int256 diff1 = -(_spot * d2E4 * nd1) / (_x0 * 1e8);
         int256 end = start + (diff1 * (_x1 - _x0)) / 1e8;
         return (((start + end) * (_x1 - _x0)) / (2 * 1e8));
     }

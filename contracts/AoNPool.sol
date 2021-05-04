@@ -29,6 +29,7 @@ contract AoNPool is Pool {
         IPriceCalculator.OptionType _optionType
     ) external override(Pool) onlyOwner returns (uint256 totalPremium, uint256) {
         {
+            require(_spotPrice == _strike, "AoNPool: only ATM option is available");
             Step memory step = Step(0, 0, _amount, 0);
             {
                 uint256 moneyness = (100 * _strike) / _spotPrice;
@@ -41,7 +42,8 @@ contract AoNPool is Pool {
                 if (step.currentTick > 20) {
                     revert("too large tick");
                 }
-                if (state.balance == 0) {
+                uint256 nextTick = step.currentTick + 1;
+                if (state.balance - state.lockedAmount == 0) {
                     step.currentTick += 1;
                     continue;
                 }
@@ -51,14 +53,14 @@ contract AoNPool is Pool {
                 // cauculate slope of liner function(x:amount, y:IV)
                 // slope is 'moneyness * (upper IV - lower IV) / available balance'
                 uint256 kE8 =
-                    (1e18 * _strike * (1e6 * ((step.currentTick + 1)**2) - step.position)) /
+                    (1e18 * _strike * (1e6 * ((nextTick)**2) - step.position)) /
                         (_spotPrice * (state.balance - state.lockedAmount));
                 {
                     require(state.balance >= state.lockedAmount, "state.balance >= state.lockedAmount");
                     // step.position must be less than upper IV through a step
                     uint256 available =
                         min(
-                            (1e18 * sub(1e6 * ((step.currentTick + 1)**2), step.position)) / kE8,
+                            (1e18 * sub(1e6 * ((nextTick)**2), step.position)) / kE8,
                             state.balance - state.lockedAmount
                         );
                     if (available >= step.remain) {
@@ -68,12 +70,13 @@ contract AoNPool is Pool {
                         step.stepAmount = available;
                         require(step.remain >= step.stepAmount, "step.remain >= step.stepAmount");
                         step.remain -= step.stepAmount;
-                        step.currentTick += 1;
+                        step.currentTick = nextTick;
                     }
                     if (step.stepAmount == 0) {
                         break;
                     }
                 }
+
                 uint256 premium =
                     AoNPriceCalculator.calculateOptionPrice(
                         _spotPrice,
@@ -85,23 +88,15 @@ contract AoNPool is Pool {
                         _optionType,
                         false
                     );
+                require(step.position <= 1e6 * ((nextTick)**2), "step.position must be less than upper");
+                step.position += (kE8 * step.stepAmount) / 1e18;
+
                 premium = (premium * 1e18) / _spotPrice;
                 premium += calculateSpread(premium);
 
                 totalPremium += premium;
 
                 updateShortOption(locks[_optionId], step.currentTick, step.stepAmount, premium);
-
-                if (_spotPrice >= _strike) {
-                    require(
-                        step.position <= 1e6 * ((step.currentTick + 1)**2),
-                        "step.position must be less than upper"
-                    );
-                    step.position += (kE8 * step.stepAmount) / 1e18;
-                } else {
-                    require(step.position >= 1e6 * (step.currentTick**2), "step.position must be greater than lower");
-                    step.position -= (kE8 * step.stepAmount) / 1e18;
-                }
 
                 // update state
                 state.lockedAmount += step.stepAmount;
@@ -189,11 +184,9 @@ contract AoNPool is Pool {
             }
 
             if (_spotPrice >= _strike) {
+                // OTM and ATM
                 require(step.position >= 1e6 * (step.currentTick**2), "step.position must be greater than lower");
                 step.position -= (kE8 * step.stepAmount) / 1e18;
-            } else {
-                require(step.position <= 1e6 * ((step.currentTick + 1)**2), "step.position must be less than upper");
-                step.position += (kE8 * step.stepAmount) / 1e18;
             }
 
             {
@@ -208,6 +201,16 @@ contract AoNPool is Pool {
                         _optionType,
                         true
                     );
+
+                if (_spotPrice < _strike) {
+                    // ITM
+                    require(
+                        step.position <= 1e6 * ((step.currentTick + 1)**2),
+                        "step.position must be less than upper"
+                    );
+                    step.position += (kE8 * step.stepAmount) / 1e18;
+                }
+
                 premium = (premium * 1e18) / _spotPrice;
                 premium -= calculateSpread(premium);
 
