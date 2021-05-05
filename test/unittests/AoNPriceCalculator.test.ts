@@ -1,4 +1,4 @@
-import { BlackScholesTesterInstance } from '../../build/types/truffle-types'
+import { AoNPriceCalculatorTesterInstance } from '../../build/types/truffle-types'
 import { OptionType, scale } from '../utils'
 
 const { expectRevert } = require('@openzeppelin/test-helpers')
@@ -7,7 +7,7 @@ const AoNPriceCalculator = artifacts.require('AoNPriceCalculator.sol')
 const AoNPriceCalculatorTester = artifacts.require('AoNPriceCalculatorTester.sol')
 
 contract('AoNPriceCalculator', ([]) => {
-  let tester: BlackScholesTesterInstance
+  let tester: AoNPriceCalculatorTesterInstance
 
   before(async () => {
     const lib = await AoNPriceCalculator.new()
