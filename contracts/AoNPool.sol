@@ -30,7 +30,7 @@ contract AoNPool is Pool {
     ) external override(Pool) onlyOwner returns (uint256 totalPremium, uint256) {
         {
             require(_spotPrice == _strike, "AoNPool: only ATM option is available");
-            Step memory step = Step(0, 0, _amount, 0);
+            Step memory step = Step(0, 0, 0, _amount, 0);
             {
                 uint256 moneyness = (100 * _strike) / _spotPrice;
                 (uint256 currentTick, uint256 currentPosition) = getPosition(_maturity, moneyness);
@@ -138,7 +138,7 @@ contract AoNPool is Pool {
     ) external override(Pool) onlyOwner returns (uint256 totalPremium) {
         require(_maturity > 0 && _maturity < 31536000, "the _maturity should not have expired and less than 1 year");
 
-        Step memory step = Step(0, 0, _amount, 0);
+        Step memory step = Step(0, 0, 0, _amount, 0);
         {
             uint256 moneyness = (100 * _strike) / _spotPrice;
             (uint256 currentTick, uint256 currentPosition) = getPosition(_maturity, moneyness);
