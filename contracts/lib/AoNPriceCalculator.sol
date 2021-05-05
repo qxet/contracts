@@ -4,6 +4,9 @@ pragma solidity ^0.8.0;
 import "../interfaces/IPriceCalculator.sol";
 import "./AdvancedMath.sol";
 
+/**
+ * @notice Asset-Or-Nothing option price calculator
+ */
 library AoNPriceCalculator {
     /**
      * @dev sqrt(365*86400) * 10^8
@@ -90,7 +93,7 @@ library AoNPriceCalculator {
         bool _isPut
     ) internal pure returns (uint256) {
         int256 logSigE4;
-        int256 diff2;
+        int256 diffValue;
         {
             int256 spotPerStrikeE4 = (_spot * 1e4) / _strike;
             logSigE4 = AdvancedMath._logTaylor(spotPerStrikeE4);
@@ -98,13 +101,16 @@ library AoNPriceCalculator {
             int256 d2E4;
             (d1E4, d2E4) = _calD1D2(logSigE4, _sqrtMaturity, _x0);
             if (_isPut) {
-                diff2 = d1E4 - d2E4 + d1E4 * d2E4 * d2E4;
+                // calculate second differential value of put option pricing fomula
+                diffValue = d1E4 - d2E4 + d1E4 * d2E4 * d2E4;
             } else {
-                diff2 = -d1E4 + d2E4 - d1E4 * d2E4 * d2E4;
+                // calculate second differential value of call option pricing fomula
+                diffValue = -d1E4 + d2E4 - d1E4 * d2E4 * d2E4;
             }
         }
         {
-            if ((diff2 >= 0 && !_isSell) || (diff2 < 0 && _isSell)) {
+            // check plus minus sign of second differential value
+            if ((diffValue >= 0 && !_isSell) || (diffValue < 0 && _isSell)) {
                 // normal trapezoidal rule
                 int256 price = _calTrapezoidalRule(logSigE4, _sqrtMaturity, _x0, _x0 + (_amount * _k) / 1e8, _isPut);
                 return uint256((price * 1e8) / _k);
@@ -125,6 +131,9 @@ library AoNPriceCalculator {
         d2E4 = d1E4 - (sigE8 / 10**4);
     }
 
+    /**
+     * @notice calculate area by trapezoidal rule
+     */
     function _calTrapezoidalRule(
         int256 _logSigE4,
         int256 _sqrtMaturity,
@@ -137,6 +146,9 @@ library AoNPriceCalculator {
         return ((start + end) * (_x1 - _x0)) / (2 * 1e8);
     }
 
+    /**
+     * @notice calculate area by trapezoidal rule but using slope at _x0
+     */
     function _calTrapezoidalRule2(
         int256 _spot,
         int256 _logSigE4,

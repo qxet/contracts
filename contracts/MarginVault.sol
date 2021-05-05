@@ -15,6 +15,9 @@ contract MarginVault is IMarginVault, Ownable {
 
     uint256 vaultCount;
 
+    /**
+     * @notice write new option and store collateral infomation as vault object
+     */
     function write(
         address _owner,
         uint256 _longId,

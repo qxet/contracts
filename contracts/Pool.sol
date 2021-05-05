@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IOptions.sol";
 import "./interfaces/IPool.sol";
-import "./lib/BlackScholes.sol";
+import "./lib/PriceCalculator.sol";
 import "./lib/AdvancedMath.sol";
 
 /**
@@ -185,7 +185,7 @@ contract Pool is IPool, ERC1155, Ownable {
                     }
                 }
                 uint256 premium =
-                    BlackScholes.calculateOptionPrice(
+                    PriceCalculator.calculateOptionPrice(
                         _spotPrice,
                         _strike,
                         _maturity,
@@ -266,7 +266,7 @@ contract Pool is IPool, ERC1155, Ownable {
 
             // cauculate slope of liner function(x:amount, y:IV)
             // slope is 'moneyness * bs * (position + lower IV) * (position - lower IV) / (2 * available premium pool)'
-            uint256 bs = BlackScholes.calStartPrice(_spotPrice, _strike, _maturity, step.position, _optionType);
+            uint256 bs = PriceCalculator.calStartPrice(_spotPrice, _strike, _maturity, step.position, _optionType);
             uint256 kE8 =
                 (1e10 * bs * _strike * (step.position**2 - (1e6 * (step.currentTick**2))**2)) /
                     (2 * state.premiumPool * (_spotPrice**2));
@@ -292,7 +292,7 @@ contract Pool is IPool, ERC1155, Ownable {
             step.position -= (kE8 * step.stepAmount) / 1e18;
             {
                 uint256 premium =
-                    BlackScholes.calculateOptionPrice(
+                    PriceCalculator.calculateOptionPrice(
                         _spotPrice,
                         _strike,
                         _maturity,

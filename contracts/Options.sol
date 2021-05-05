@@ -163,6 +163,9 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
         _burn(address(this), _optionId, _amount);
     }
 
+    /**
+     * @notice unlock pool funds after expiration
+     */
     function unlock(uint256 _optionId) public {
         OptionSeries memory option = getOption(_optionId);
         require(option.expiry < block.timestamp, "Options: option must be expired");
