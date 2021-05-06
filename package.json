@@ -9,6 +9,7 @@
         "build": "truffle compile",
         "migrate": "truffle migrate --network local",
         "generate": "truffle compile && typechain --target=truffle-v5 --outDir build/types/truffle-types './build/**/*.json'",
+        "generate:ethers": "truffle compile && typechain --target=ethers-v5 --outDir build/types/truffle-types './build/**/*.json'",
         "test": "truffle test ./test/**/*.ts",
         "test:file": "truffle test",
         "test:coverage": "truffle run coverage",
@@ -24,7 +25,8 @@
     ],
     "dependencies": {
         "@chainlink/contracts": "^0.1.6",
-        "@openzeppelin/contracts": "v4.0.0"
+        "@openzeppelin/contracts": "v4.0.0",
+        "@typechain/ethers-v5": "^6.0.5"
     },
     "devDependencies": {
         "@openzeppelin/test-helpers": "^0.5.10",
