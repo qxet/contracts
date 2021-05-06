@@ -45,15 +45,20 @@ contract('Pool', ([alice]) => {
   }
 
   async function getLocked(optionId: BN): Promise<LockedOption> {
-    const lockedOption = await pool.locks(optionId)
-    const shorts = await pool.getLockedOption(optionId)
-    const longs = await pool.getLongsOfLockedOption(optionId)
-
+    const lockedOption = await pool.getLockedOption(optionId)
     return {
-      amount: lockedOption[0],
-      premium: lockedOption[1],
-      shorts: shorts.map((s) => ({ tickId: s.tickId, amount: s.amount, premium: s.premium })),
-      longs: longs.map((l) => ({ tickId: l.tickId, amount: l.amount, premium: l.premium })),
+      amount: new BN(lockedOption.amount),
+      premium: new BN(lockedOption.premium),
+      shorts: lockedOption.shorts.map((s) => ({
+        tickId: s.tickId,
+        amount: new BN(s.amount),
+        premium: new BN(s.premium),
+      })),
+      longs: lockedOption.longs.map((l) => ({
+        tickId: l.tickId,
+        amount: new BN(l.amount),
+        premium: new BN(l.premium),
+      })),
     }
   }
 

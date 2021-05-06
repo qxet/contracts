@@ -128,12 +128,8 @@ contract Pool is IPool, ERC1155, Ownable {
         return balance;
     }
 
-    function getLockedOption(uint256 _optionId) public view returns (LockedPerTick[] memory) {
-        return locks[_optionId].shorts;
-    }
-
-    function getLongsOfLockedOption(uint256 _optionId) public view returns (LockedPerTick[] memory) {
-        return locks[_optionId].longs;
+    function getLockedOption(uint256 _optionId) public view returns (LockedOption memory) {
+        return locks[_optionId];
     }
 
     /**
@@ -195,7 +191,6 @@ contract Pool is IPool, ERC1155, Ownable {
                         require(step.remain >= step.stepAmount, "step.remain >= step.stepAmount");
                         step.remain -= step.stepAmount;
                         step.nextTick = step.currentTick + 1;
-                        // TODO <----
                     }
                     if (step.stepAmount == 0) {
                         break;
