@@ -87,7 +87,9 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 balance;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
             totalSupply += ticks[i].supply;
-            balance += ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium;
+            if (ticks[i].balance + ticks[i].premiumPool >= ticks[i].lockedPremium) {
+                balance += ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium;
+            }
         }
         if (totalSupply > 0 && balance > 0) {
             return divUint256(totalSupply, balance);
@@ -104,7 +106,9 @@ contract Pool is IPool, ERC1155, Ownable {
     function getBalance(uint256 _tickStart, uint256 _tickEnd) public view returns (uint256) {
         uint256 balance;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium);
+            if (ticks[i].balance + ticks[i].premiumPool >= ticks[i].lockedPremium) {
+                balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium);
+            }
         }
         return balance;
     }
@@ -117,7 +121,9 @@ contract Pool is IPool, ERC1155, Ownable {
     function getAvailableBalance(uint256 _tickStart, uint256 _tickEnd) public view returns (uint256) {
         uint256 balance;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium - ticks[i].lockedAmount);
+            if (ticks[i].balance + ticks[i].premiumPool >= ticks[i].lockedPremium + ticks[i].lockedAmount) {
+                balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium - ticks[i].lockedAmount);
+            }
         }
         return balance;
     }
@@ -330,9 +336,6 @@ contract Pool is IPool, ERC1155, Ownable {
                 // update state
                 require(state.premiumPool >= premium, "Pool: no enough pool");
                 state.premiumPool -= premium;
-                if (state.lockedPremium >= premium) {
-                    state.lockedPremium -= premium;
-                }
 
                 // unlock amount
                 updateLongOption(_optionId, state, step.currentTick, step.stepAmount, premium);
@@ -439,9 +442,7 @@ contract Pool is IPool, ERC1155, Ownable {
             uint256 a = (option.shorts[i].amount * _amount) / option.amount;
             uint256 p = (option.shorts[i].premium * _amount) / option.amount;
             ticks[tickId].lockedAmount -= a;
-            if (ticks[tickId].lockedPremium >= p) {
-                ticks[tickId].lockedPremium -= p;
-            }
+            ticks[tickId].lockedPremium -= p;
             option.shorts[i].amount -= a;
             option.shorts[i].premium -= p;
         }
@@ -638,6 +639,14 @@ contract Pool is IPool, ERC1155, Ownable {
                     remain = _amount - option.shorts[i].amount;
                     _tick.lockedAmount -= option.shorts[i].amount;
                     option.shorts[i].amount = 0;
+                }
+                // unlock premium
+                if (option.shorts[i].premium >= _premium) {
+                    _tick.lockedPremium -= _premium;
+                    option.shorts[i].premium -= _premium;
+                } else {
+                    _tick.lockedPremium -= option.shorts[i].premium;
+                    option.shorts[i].premium = 0;
                 }
             }
         }

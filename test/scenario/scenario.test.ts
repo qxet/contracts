@@ -190,17 +190,23 @@ contract('Scenario Test', ([alice, bob]) => {
       console.log(position3.toString())
 
       assert.equal(formatEther(before1.sub(after1)), '0.025626303224266666')
-      assert.equal(formatEther(after2.sub(before2)), '0.011747641813273542')
+      assert.equal(formatEther(after2.sub(before2)), '0.011443540289686099')
 
       // 7 days later
       await time.increase(60 * 60 * 24 * 7 + 60)
+
+      let available = await pool.getAvailableBalance(4, 6)
+      console.log('available', available.toString())
+
       await options.unlock(optionId)
 
+      available = await pool.getAvailableBalance(4, 6)
+      console.log('available', available.toString())
       const rangeId = genRangeId(4, 6)
       const beforeLPToken = await pool.balanceOf(alice, rangeId)
       await pool.withdrawERC20(depositAmount, rangeId, { from: alice })
       const afterLPToken = await pool.balanceOf(alice, rangeId)
-      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '9994124700000000000')
+      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '9993821000000000000')
     })
   })
 })

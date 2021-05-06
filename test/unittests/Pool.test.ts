@@ -378,6 +378,22 @@ contract('Pool', ([alice]) => {
       assert.equal(formatEther(tick2.lockedPremium), '0.0')
     })
 
+    it('sell and unlock options', async () => {
+      const maturity = 60 * 60 * 24 * 6
+      const sellPremium = await pool.sell.call(optionId, spot, amount, maturity, strike, OptionType.Call)
+      await pool.sell(optionId, spot, amount, maturity, strike, OptionType.Call)
+      await time.increase(60 * 60 * 24 * 7 + 60)
+
+      // unlock
+      const beforeBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
+      await pool.unlock(optionId)
+      const afterBalance = await pool.getAvailableBalance(rangeStart, rangeEnd)
+
+      // asserts
+      const expectedAvailableBalance = premium.sub(sellPremium)
+      assert.equal(afterBalance.sub(beforeBalance).toString(), expectedAvailableBalance.toString())
+    })
+
     it('unlock partially', async () => {
       const payout = scale(5, 16)
       const halfAmount = amount.div(new BN(2))
@@ -465,7 +481,7 @@ contract('Pool', ([alice]) => {
 
       // asserts
       assert.equal(formatEther(option1Before.amount.sub(option1After.amount)), '1.020956377483419668')
-      assert.equal(formatEther(afterBalance.sub(beforeBalance)), '0.523036993592635286')
+      assert.equal(formatEther(afterBalance.sub(beforeBalance)), '0.511913276467571647')
       let tick2 = await getTick(2)
       let tick3 = await getTick(3)
       let tick4 = await getTick(4)
