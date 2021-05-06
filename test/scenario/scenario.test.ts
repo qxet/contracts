@@ -165,7 +165,7 @@ contract('Scenario Test', ([alice, bob]) => {
       // spot price is $2260
       await ethUsdAggregator.setLatestAnswer(scale(2260, 8))
 
-      await expectRevert(options.sellERC20Option(optionId, amount, { from: bob }), 'Pool: no enough pool')
+      await expectRevert(options.sellERC20Option(optionId, amount, { from: bob }), 'Pool: 1. tick must be positive')
 
       // spot price is $2230
       await ethUsdAggregator.setLatestAnswer(scale(2230, 8))

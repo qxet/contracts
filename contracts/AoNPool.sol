@@ -143,6 +143,7 @@ contract AoNPool is Pool {
             uint256 moneyness = (100 * _strike) / _spotPrice;
             (uint256 currentTick, uint256 currentPosition) = getPosition(_maturity, moneyness);
             step.currentTick = currentTick;
+            step.nextTick = currentTick;
             step.position = currentPosition;
         }
         while (step.remain != 0) {
@@ -176,20 +177,23 @@ contract AoNPool is Pool {
                     if (step.currentTick == 0) {
                         revert("Pool: 2. tick must be positive");
                     }
-                    step.currentTick -= 1;
+                    if (_spotPrice >= _strike) {
+                        step.nextTick = step.currentTick - 1;
+                    } else {
+                        step.nextTick = step.currentTick + 1;
+                    }
                 }
                 if (step.stepAmount == 0) {
                     break;
                 }
             }
 
-            if (_spotPrice >= _strike) {
-                // OTM and ATM
-                require(step.position >= 1e6 * (step.currentTick**2), "step.position must be greater than lower");
-                step.position -= (kE8 * step.stepAmount) / 1e18;
-            }
-
             {
+                if (_spotPrice >= _strike) {
+                    // OTM and ATM
+                    require(step.position >= 1e6 * (step.currentTick**2), "step.position must be greater than lower");
+                    step.position -= (kE8 * step.stepAmount) / 1e18;
+                }
                 uint256 premium =
                     AoNPriceCalculator.calculateOptionPrice(
                         _spotPrice,
@@ -223,6 +227,7 @@ contract AoNPool is Pool {
                 // unlock amount
                 updateLongOption(_optionId, state, step.currentTick, step.stepAmount, premium);
             }
+            step.currentTick = step.nextTick;
         }
         require(step.remain == 0, "Pool: no enough avaiable balance");
 
