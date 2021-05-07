@@ -413,14 +413,6 @@ contract Pool is IPool, ERC1155, Ownable {
         LockedOption storage option = locks[_id];
         require(option.amount > 0, "Pool: no amount left");
 
-        /*
-        for (uint256 i = 0; i < option.shorts.length; i++) {
-            uint256 tickId = option.shorts[i].tickId;
-            ticks[tickId].lockedAmount -= option.shorts[i].amount;
-            ticks[tickId].lockedPremium -= option.shorts[i].premium;
-        }
-        */
-
         unlockPartially(_id, option.amount);
         // TODO:
         // case exercise -> buy
@@ -455,6 +447,7 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 _issued,
         uint256 _amount
     ) internal {
+        require(_tickStart < _tickEnd, "Pool: tickStart < tickEnd");
         uint256 issuedPerTick = _issued / (_tickEnd - _tickStart);
         uint256 amountPerTick = _amount / (_tickEnd - _tickStart);
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
@@ -476,11 +469,12 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 _burn,
         uint256 _amount
     ) internal {
+        require(_tickStart < _tickEnd, "Pool: tickStart < tickEnd");
         uint256 burnPerTick = _burn / (_tickEnd - _tickStart);
 
         uint256 total;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            IPool.Tick storage tick = ticks[i];
+            IPool.Tick memory tick = ticks[i];
             total += tick.balance + tick.premiumPool - tick.lockedPremium;
         }
 
@@ -592,13 +586,6 @@ contract Pool is IPool, ERC1155, Ownable {
         _end = _rangeId / 1e2;
     }
 
-    function unpack(uint256 _packed) internal pure returns (IOptions.OptionSeries memory) {
-        uint256 optionType = uint256(_packed >> (16 * 8));
-        uint64 expiry = uint64((_packed - (optionType << (16 * 8))) >> (8 * 8));
-        uint64 strike = uint64(_packed - (optionType << (16 * 8)) - (expiry << (8 * 8)));
-        return IOptions.OptionSeries(expiry, strike * 1e6, IPriceCalculator.OptionType(optionType));
-    }
-
     function updateShortOption(
         LockedOption storage _option,
         uint256 _tickId,
@@ -648,7 +635,7 @@ contract Pool is IPool, ERC1155, Ownable {
             }
         }
 
-        // the tick has long if there remain
+        // the tick should have long position if there remain
         if (remain > 0) {
             for (uint256 i = 0; i < option.longs.length; i++) {
                 if (option.longs[i].tickId == _tickId) {

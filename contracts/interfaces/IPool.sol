@@ -7,7 +7,12 @@ import "./IPriceCalculator.sol";
 interface IPool {
     /**
      * @notice tick is a section of IV
-     *   It has information about the status of the funds in a tick.
+     *   Tick has information about the status of the funds
+     * @param supply amount of LP token issued
+     * @param balance amount of fund for selling options
+     * @param premiumPool amount of fund for buying options
+     * @param lockedAmount locked funds for selling options
+     * @param lockedPremium locked funds for buying options
      */
     struct Tick {
         uint256 supply;
@@ -18,7 +23,11 @@ interface IPool {
     }
 
     /**
-     * @notice written options compressed
+     * @notice written options
+     * @param amount amount of options pool wrote
+     * @param premium premium pool received
+     * @param shorts LockedPerTick which has short position
+     * @param longs LockedPerTick which has long position
      */
     struct LockedOption {
         uint256 amount;
@@ -27,6 +36,12 @@ interface IPool {
         LockedPerTick[] longs;
     }
 
+    /**
+     * @notice tick position
+     * @param tickId tick id
+     * @param amount amount of option tick has
+     * @param premium amount of premium tick received
+     */
     struct LockedPerTick {
         uint256 tickId;
         uint256 amount;
