@@ -28,6 +28,7 @@ contract Pool is IPool, ERC1155, Ownable {
     /// @dev buy and sell step information
     struct Step {
         uint256 currentTick;
+        uint256 nextTick;
         uint256 stepAmount;
         uint256 remain;
         uint256 position;
@@ -86,7 +87,9 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 balance;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
             totalSupply += ticks[i].supply;
-            balance += ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium;
+            if (ticks[i].balance + ticks[i].premiumPool >= ticks[i].lockedPremium) {
+                balance += ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium;
+            }
         }
         if (totalSupply > 0 && balance > 0) {
             return divUint256(totalSupply, balance);
@@ -103,7 +106,9 @@ contract Pool is IPool, ERC1155, Ownable {
     function getBalance(uint256 _tickStart, uint256 _tickEnd) public view returns (uint256) {
         uint256 balance;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium);
+            if (ticks[i].balance + ticks[i].premiumPool >= ticks[i].lockedPremium) {
+                balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium);
+            }
         }
         return balance;
     }
@@ -116,9 +121,15 @@ contract Pool is IPool, ERC1155, Ownable {
     function getAvailableBalance(uint256 _tickStart, uint256 _tickEnd) public view returns (uint256) {
         uint256 balance;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium - ticks[i].lockedAmount);
+            if (ticks[i].balance + ticks[i].premiumPool >= ticks[i].lockedPremium + ticks[i].lockedAmount) {
+                balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium - ticks[i].lockedAmount);
+            }
         }
         return balance;
+    }
+
+    function getLockedOption(uint256 _optionId) public view returns (LockedOption memory) {
+        return locks[_optionId];
     }
 
     /**
@@ -140,11 +151,12 @@ contract Pool is IPool, ERC1155, Ownable {
         IPriceCalculator.OptionType _optionType
     ) external virtual override(IPool) onlyOwner returns (uint256 totalPremium, uint256) {
         {
-            Step memory step = Step(0, 0, _amount, 0);
+            Step memory step = Step(0, 0, 0, _amount, 0);
             {
                 uint256 moneyness = (100 * _strike) / _spotPrice;
                 (uint256 currentTick, uint256 currentPosition) = getPosition(_maturity, moneyness);
                 step.currentTick = currentTick;
+                step.nextTick = currentTick;
                 step.position = currentPosition;
             }
             while (step.remain != 0) {
@@ -178,7 +190,7 @@ contract Pool is IPool, ERC1155, Ownable {
                         step.stepAmount = available;
                         require(step.remain >= step.stepAmount, "step.remain >= step.stepAmount");
                         step.remain -= step.stepAmount;
-                        step.currentTick += 1;
+                        step.nextTick = step.currentTick + 1;
                     }
                     if (step.stepAmount == 0) {
                         break;
@@ -208,6 +220,8 @@ contract Pool is IPool, ERC1155, Ownable {
                 state.lockedAmount += step.stepAmount;
                 state.lockedPremium += premium;
                 state.premiumPool += premium;
+
+                step.currentTick = step.nextTick;
             }
 
             setPosition(_maturity, (100 * _strike) / _spotPrice, uint64(step.position));
@@ -244,11 +258,12 @@ contract Pool is IPool, ERC1155, Ownable {
     ) external virtual override(IPool) onlyOwner returns (uint256 totalPremium) {
         require(_maturity > 0 && _maturity < 31536000, "the _maturity should not have expired and less than 1 year");
 
-        Step memory step = Step(0, 0, _amount, 0);
+        Step memory step = Step(0, 0, 0, _amount, 0);
         {
             uint256 moneyness = (100 * _strike) / _spotPrice;
             (uint256 currentTick, uint256 currentPosition) = getPosition(_maturity, moneyness);
             step.currentTick = currentTick;
+            step.nextTick = currentTick;
             step.position = currentPosition;
         }
         while (step.remain != 0) {
@@ -266,10 +281,16 @@ contract Pool is IPool, ERC1155, Ownable {
 
             // cauculate slope of liner function(x:amount, y:IV)
             // slope is 'moneyness * bs * (position + lower IV) * (position - lower IV) / (2 * available premium pool)'
-            uint256 bs = PriceCalculator.calStartPrice(_spotPrice, _strike, _maturity, step.position, _optionType);
-            uint256 kE8 =
-                (1e10 * bs * _strike * (step.position**2 - (1e6 * (step.currentTick**2))**2)) /
-                    (2 * state.premiumPool * (_spotPrice**2));
+            uint256 bs =
+                PriceCalculator.calStartPrice(
+                    _spotPrice,
+                    _strike,
+                    _maturity,
+                    1e6 * (step.currentTick**2),
+                    step.position,
+                    _optionType
+                );
+            uint256 kE8 = (1e26 * _strike * bs) / (state.premiumPool * (_spotPrice**2));
             {
                 uint256 available = (1e18 * sub(step.position, 1e6 * (step.currentTick**2))) / kE8;
                 if (available >= step.remain) {
@@ -282,7 +303,7 @@ contract Pool is IPool, ERC1155, Ownable {
                     if (step.currentTick == 0) {
                         revert("Pool: 2. tick must be positive");
                     }
-                    step.currentTick -= 1;
+                    step.nextTick = step.currentTick - 1;
                 }
                 if (step.stepAmount == 0) {
                     break;
@@ -314,6 +335,7 @@ contract Pool is IPool, ERC1155, Ownable {
                 // unlock amount
                 updateLongOption(_optionId, state, step.currentTick, step.stepAmount, premium);
             }
+            step.currentTick = step.nextTick;
         }
         require(step.remain == 0, "Pool: no enough avaiable balance");
 
@@ -361,23 +383,27 @@ contract Pool is IPool, ERC1155, Ownable {
 
         // increase balance for long
         uint256 totalPayout;
+        uint256 unlockAmount;
         for (uint256 i = 0; i < option.longs.length; i++) {
-            uint256 payout = option.longs[i].amount * _profit;
-            ticks[i].balance += payout;
+            uint256 tickId = option.longs[i].tickId;
+            uint256 payout = (option.longs[i].amount * _profit) / 1e18;
+            ticks[tickId].balance += payout;
             totalPayout += payout;
+            unlockAmount += option.longs[i].amount;
+        }
+
+        if (unlockAmount == 0) {
+            return;
         }
 
         // decrease balance for short
-        uint256 total;
-        for (uint256 i = 0; i < option.shorts.length; i++) {
-            total += option.shorts[i].amount;
-        }
-
         for (uint256 i = 0; i < option.shorts.length; i++) {
             uint256 tickId = option.shorts[i].tickId;
-            require(ticks[tickId].balance > (option.shorts[i].amount * totalPayout) / total, "Pool: ");
-            ticks[tickId].balance -= (option.shorts[i].amount * totalPayout) / total;
+            uint256 payout = (option.shorts[i].amount * totalPayout) / unlockAmount;
+            require(ticks[tickId].balance >= payout, "Pool: ");
+            ticks[tickId].balance -= payout;
         }
+        unlockPartially(_id, unlockAmount);
     }
 
     /**
@@ -418,11 +444,6 @@ contract Pool is IPool, ERC1155, Ownable {
         option.amount -= _amount;
     }
 
-    function receiveERC20(address _account, uint256 _amount) external override(IPool) onlyOwner {
-        IERC20 token = IERC20(asset);
-        token.transferFrom(_account, address(this), _amount);
-    }
-
     function sendERC20(address _to, uint256 _amount) external override(IPool) onlyOwner {
         IERC20 token = IERC20(asset);
         token.transfer(_to, _amount);
@@ -437,13 +458,14 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 issuedPerTick = _issued / (_tickEnd - _tickStart);
         uint256 amountPerTick = _amount / (_tickEnd - _tickStart);
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            ticks[i].supply += issuedPerTick;
-            uint256 total = ticks[i].balance + ticks[i].premiumPool;
+            IPool.Tick storage tick = ticks[i];
+            tick.supply += issuedPerTick;
+            uint256 total = tick.balance + tick.premiumPool;
             if (total == 0) {
-                ticks[i].balance += amountPerTick;
+                tick.balance += amountPerTick;
             } else {
-                ticks[i].balance += (amountPerTick * ticks[i].balance) / total;
-                ticks[i].premiumPool += (amountPerTick * ticks[i].premiumPool) / total;
+                tick.balance += (amountPerTick * tick.balance) / total;
+                tick.premiumPool += (amountPerTick * tick.premiumPool) / total;
             }
         }
     }
@@ -455,12 +477,18 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 _amount
     ) internal {
         uint256 burnPerTick = _burn / (_tickEnd - _tickStart);
-        uint256 amountPerTick = _amount / (_tickEnd - _tickStart);
+
+        uint256 total;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            ticks[i].supply -= burnPerTick;
-            uint256 total = ticks[i].balance + ticks[i].premiumPool;
-            ticks[i].balance -= (amountPerTick * ticks[i].balance) / total;
-            ticks[i].premiumPool -= (amountPerTick * ticks[i].premiumPool) / total;
+            IPool.Tick storage tick = ticks[i];
+            total += tick.balance + tick.premiumPool - tick.lockedPremium;
+        }
+
+        for (uint256 i = _tickStart; i < _tickEnd; i++) {
+            IPool.Tick storage tick = ticks[i];
+            tick.balance -= (tick.balance * _amount) / total;
+            tick.premiumPool -= ((tick.premiumPool - tick.lockedPremium) * _amount) / total;
+            tick.supply -= burnPerTick;
         }
     }
 
@@ -596,13 +624,14 @@ contract Pool is IPool, ERC1155, Ownable {
     ) internal {
         LockedOption storage option = locks[_optionId];
         // offset collaterals
-        uint256 remain;
+        uint256 remain = _amount;
         for (uint256 i = 0; i < option.shorts.length; i++) {
             if (_tickId == option.shorts[i].tickId) {
                 // unlock amount
                 if (option.shorts[i].amount >= _amount) {
                     _tick.lockedAmount -= _amount;
                     option.shorts[i].amount -= _amount;
+                    remain = 0;
                 } else {
                     remain = _amount - option.shorts[i].amount;
                     _tick.lockedAmount -= option.shorts[i].amount;

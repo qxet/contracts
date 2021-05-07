@@ -76,10 +76,11 @@ library PriceCalculator {
         uint256 _spot,
         uint256 _strike,
         uint256 _maturity,
-        uint256 _volatility,
+        uint256 _x0,
+        uint256 _x1,
         IPriceCalculator.OptionType _optionType
     ) internal pure returns (uint256) {
-        return calculateOptionPrice(_spot, _strike, _maturity, _volatility, 1e8, 1e2, _optionType, true);
+        return calculateOptionPrice(_spot, _strike, _maturity, _x0, _x1 - _x0, 1e8, _optionType, true);
     }
 
     function calD1D2(

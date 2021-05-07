@@ -61,7 +61,5 @@ interface IPool {
 
     function unlock(uint256 _id) external;
 
-    function receiveERC20(address _account, uint256 _amount) external;
-
     function sendERC20(address _to, uint256 _amount) external;
 }

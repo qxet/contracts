@@ -278,23 +278,22 @@ contract('PriceCalculator', ([]) => {
     const maturity = 60 * 60 * 24 * 7
     // 40%
     const volatility = scale(40, 6)
-    const amount = scale(1, 8)
-    // 1%
-    const k = scale(1, 6)
+    // 49%
+    const upperIV = scale(49, 6)
 
     it('calculate OTM start price', async () => {
       // $2500
       const strike = scale(2500, 8)
-      const k = await tester.calStartPrice(spot, strike, maturity, volatility, OptionType.Call)
+      const k = await tester.calStartPrice(spot, strike, maturity, volatility, upperIV, OptionType.Call)
 
-      assert.equal(k.toString(), '35000000')
+      assert.equal(k.toString(), '6871238')
     })
 
     it('calculate ATM start price', async () => {
       // ATM
       const strike = spot
-      const k = await tester.calStartPrice(spot, strike, maturity, volatility, OptionType.Call)
-      assert.equal(k.toString(), '4852000000')
+      const k = await tester.calStartPrice(spot, strike, maturity, volatility, upperIV, OptionType.Call)
+      assert.equal(k.toString(), '485715978')
     })
   })
 })

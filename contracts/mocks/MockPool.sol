@@ -64,11 +64,6 @@ contract MockPool is IPool, ERC20 {
         IPriceCalculator.OptionType _optionType
     ) external override(IPool) returns (uint256 totalPremium) {}
 
-    function receiveERC20(address _account, uint256 _amount) external override(IPool) {
-        IERC20 token = IERC20(asset);
-        token.transferFrom(_account, address(this), _amount);
-    }
-
     function exercise(
         uint256 _id,
         uint256 _amount,

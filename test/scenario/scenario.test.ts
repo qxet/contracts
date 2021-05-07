@@ -6,7 +6,7 @@ import {
   MockERC20Instance,
   MockMarginVaultInstance,
 } from '../../build/types/truffle-types'
-import { formatEther, genRangeId, scale } from '../utils'
+import { genRangeId, scale } from '../utils'
 const { expectRevert, time } = require('@openzeppelin/test-helpers')
 
 const BN = web3.utils.BN
@@ -31,6 +31,29 @@ contract('Scenario Test', ([alice, bob]) => {
 
   // 10 ETH
   const depositAmount = new BN(10).mul(new BN('10').pow(new BN('18')))
+
+  async function buy(maturity: number, strike: BN, amount: BN, from: string) {
+    const response = await options.buyERC20Option(maturity, strike, amount, { from: from })
+    const optionId = response.logs[1].args.optionId
+    const premium = response.logs[1].args.premium
+    const protocolFee = response.logs[1].args.protocolFee
+    return {
+      optionId,
+      premium,
+      protocolFee,
+    }
+  }
+
+  async function sell(optionId: BN, amount: BN, from: string) {
+    const response = await options.sellERC20Option(optionId, amount, { from: from })
+    const premium = response.logs[1].args.premium
+    const protocolFee = response.logs[1].args.protocolFee
+    return {
+      optionId,
+      premium,
+      protocolFee,
+    }
+  }
 
   beforeEach(async () => {
     const lib = await PriceCalculator.new()
@@ -68,44 +91,46 @@ contract('Scenario Test', ([alice, bob]) => {
 
     it('buy option and exercise', async () => {
       // set up preconditions
+      const strike = scale(1900, 8)
       weth.mint(bob, amount, { from: alice })
       weth.approve(options.address, amount, { from: bob })
-      // spot price is $2200
-      await ethUsdAggregator.setLatestAnswer(scale(2200, 8))
+      // spot price is $1900
+      await ethUsdAggregator.setLatestAnswer(scale(1900, 8))
 
       // create option
       const before1 = await weth.balanceOf(bob)
-      const result = await options.buyERC20Option(60 * 60 * 24 * 7, strike, amount, { from: bob })
+      const result = await buy(60 * 60 * 24 * 7, strike, amount, bob)
       const after1 = await weth.balanceOf(bob)
-      const optionId = result.logs[1].args.optionId
       await time.increase(60 * 60 * 24)
 
-      // spot price is $2250
-      await ethUsdAggregator.setLatestAnswer(scale(2250, 8))
+      // spot price is $2000
+      const spotPrice = scale(2000, 8)
+      await ethUsdAggregator.setLatestAnswer(spotPrice)
 
       // exercise
       const before2 = await weth.balanceOf(bob)
-      await options.exerciseERC20(optionId, amount, { from: bob })
+      await options.exerciseERC20(result.optionId, amount, { from: bob })
       const after2 = await weth.balanceOf(bob)
 
-      assert.equal(before1.sub(after1).toString(), '2647674885727271')
-      assert.equal(after2.sub(before2).toString(), '2666666666666666')
+      // check premium
+      assert.equal(after1.sub(before1).toString(), result.premium.add(result.protocolFee).neg().toString())
+      // check payout
+      // 2 * $100 / $2000
+      assert.equal(after2.sub(before2).toString(), amount.mul(spotPrice.sub(strike)).div(spotPrice))
     })
 
     it('buy options and exercise', async () => {
       // set up preconditions
       weth.mint(bob, amount, { from: alice })
       weth.approve(options.address, amount, { from: bob })
-      // create option
-      async function createOption() {
-        const result = await options.buyERC20Option(60 * 60 * 24 * 7, strike, smallAmount, { from: bob })
-        const optionId = result.logs[1].args.optionId
-        return optionId
-      }
+
+      // buy options
       const optionIds = []
-      optionIds.push(await createOption())
-      optionIds.push(await createOption())
-      optionIds.push(await createOption())
+      for (let i = 0; i < 3; i++) {
+        const result = await buy(60 * 60 * 24 * 7, strike, smallAmount, bob)
+        optionIds.push(result.optionId)
+      }
+
       await time.increase(60 * 60 * 24)
 
       // $2250
@@ -123,8 +148,8 @@ contract('Scenario Test', ([alice, bob]) => {
       weth.approve(options.address, amount, { from: bob })
 
       // create option
-      const result = await options.buyERC20Option(60 * 60 * 24 * 28, strike, amount, { from: bob })
-      const optionId = result.logs[1].args.optionId
+      const result = await buy(60 * 60 * 24 * 28, strike, amount, bob)
+      const optionId = result.optionId
 
       // 28 days later
       await time.increase(60 * 60 * 24 * 28 - 60)
@@ -141,7 +166,7 @@ contract('Scenario Test', ([alice, bob]) => {
 
     it('buy and sell option', async () => {
       // set up preconditions
-      const amount = new BN(1).mul(new BN('10').pow(new BN('18')))
+      const amount = scale(1, 18)
       weth.mint(bob, amount, { from: alice })
       weth.approve(options.address, amount, { from: bob })
       // spot price is $2250
@@ -150,57 +175,48 @@ contract('Scenario Test', ([alice, bob]) => {
       const position1 = await pool.positions(0, 3)
 
       const before1 = await weth.balanceOf(bob)
-      const result = await options.buyERC20Option(60 * 60 * 24 * 7, strike, amount, { from: bob })
+      const result = await buy(60 * 60 * 24 * 7, strike, amount, bob)
       const after1 = await weth.balanceOf(bob)
-      const optionId = result.logs[1].args.optionId
-
-      console.log('premium buy')
-      console.log(result.logs[1].args.premium.toString())
-      // 37653988930666666
+      const optionId = result.optionId
 
       const position2 = await pool.positions(0, 3)
-      console.log('position1', position1.toString())
-      console.log('position2', position2.toString())
+      assert.isTrue(position2.gt(position1))
 
       // spot price is $2260
       await ethUsdAggregator.setLatestAnswer(scale(2260, 8))
 
-      await expectRevert(options.sellERC20Option(optionId, amount, { from: bob }), 'Pool: no enough pool')
+      await expectRevert(options.sellERC20Option(optionId, amount, { from: bob }), 'Pool: 1. tick must be positive')
 
       // spot price is $2230
       await ethUsdAggregator.setLatestAnswer(scale(2230, 8))
 
       // sell option
       const before2 = await weth.balanceOf(bob)
-      const beforeBalance = await pool.getAvailableBalance(4, 6)
-      console.log('before balance', beforeBalance.toString())
-      const sellReceipt = await options.sellERC20Option(optionId, amount, { from: bob })
+      const sellReceipt = await sell(optionId, amount, bob)
       const after2 = await weth.balanceOf(bob)
 
       const position3 = await pool.positions(0, 3)
+      assert.isTrue(position2.gt(position3))
 
-      console.log('premium buy')
-      console.log(result.logs[1].args.premium.toString())
-      console.log(result.logs[1].args.protocolFee.toString())
-      console.log('premium sell')
-      console.log(sellReceipt.receipt.logs[1].args.premium.toString())
-      console.log('positions')
-      console.log(position1.toString())
-      console.log(position2.toString())
-      console.log(position3.toString())
-
-      assert.equal(formatEther(before1.sub(after1)), '0.025626303224266666')
-      assert.equal(formatEther(after2.sub(before2)), '0.011747641813273542')
+      assert.equal(after1.sub(before1).toString(), result.premium.add(result.protocolFee).neg().toString())
+      assert.equal(after2.sub(before2).toString(), sellReceipt.premium.toString())
 
       // 7 days later
       await time.increase(60 * 60 * 24 * 7 + 60)
+
       await options.unlock(optionId)
+
+      const poolProfit = result.premium.sub(sellReceipt.premium)
+      const available = await pool.getAvailableBalance(4, 6)
+      assert.equal(available.toString(), depositAmount.add(poolProfit).toString())
+      console.log('poolProfit', depositAmount.add(poolProfit).toString())
 
       const rangeId = genRangeId(4, 6)
       const beforeLPToken = await pool.balanceOf(alice, rangeId)
-      await pool.withdrawERC20(depositAmount, rangeId, { from: alice })
+
+      await pool.withdrawERC20(depositAmount.add(poolProfit), rangeId, { from: alice })
       const afterLPToken = await pool.balanceOf(alice, rangeId)
-      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '9994124700000000000')
+      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '9999999942605363289')
     })
   })
 })
