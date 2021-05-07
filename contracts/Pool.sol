@@ -635,7 +635,7 @@ contract Pool is IPool, ERC1155, Ownable {
             }
         }
 
-        // the tick has long if there remain
+        // the tick should have long position if there remain
         if (remain > 0) {
             for (uint256 i = 0; i < option.longs.length; i++) {
                 if (option.longs[i].tickId == _tickId) {
