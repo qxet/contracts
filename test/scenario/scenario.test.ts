@@ -18,7 +18,6 @@ const MockChainlinkAggregator = artifacts.require('MockChainlinkAggregator.sol')
 const MockStaking = artifacts.require('MockStaking.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const PriceCalculator = artifacts.require('PriceCalculator.sol')
-const PoolLib = artifacts.require('PoolLib.sol')
 
 contract('Scenario Test', ([alice, bob]) => {
   let weth: MockERC20Instance
@@ -41,7 +40,7 @@ contract('Scenario Test', ([alice, bob]) => {
     return {
       optionId,
       premium,
-      protocolFee
+      protocolFee,
     }
   }
 
@@ -52,15 +51,13 @@ contract('Scenario Test', ([alice, bob]) => {
     return {
       optionId,
       premium,
-      protocolFee
+      protocolFee,
     }
   }
 
   beforeEach(async () => {
     const lib = await PriceCalculator.new()
     await Pool.link('PriceCalculator', lib.address)
-    const poolLib = await PoolLib.new()
-    await Pool.link('PoolLib', poolLib.address)
 
     weth = await MockERC20.new('MOCK', 'MOCK')
     ethUsdAggregator = await MockChainlinkAggregator.new()
@@ -132,7 +129,6 @@ contract('Scenario Test', ([alice, bob]) => {
       for (let i = 0; i < 3; i++) {
         const result = await buy(60 * 60 * 24 * 7, strike, smallAmount, bob)
         optionIds.push(result.optionId)
-
       }
 
       await time.increase(60 * 60 * 24)
@@ -217,10 +213,10 @@ contract('Scenario Test', ([alice, bob]) => {
 
       const rangeId = genRangeId(4, 6)
       const beforeLPToken = await pool.balanceOf(alice, rangeId)
-      // 6182762934580567
+
       await pool.withdrawERC20(depositAmount.add(poolProfit), rangeId, { from: alice })
       const afterLPToken = await pool.balanceOf(alice, rangeId)
-      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '10000000000000000000')
+      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '9999999942605363289')
     })
   })
 })

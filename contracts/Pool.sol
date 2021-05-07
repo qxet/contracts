@@ -444,11 +444,6 @@ contract Pool is IPool, ERC1155, Ownable {
         option.amount -= _amount;
     }
 
-    function receiveERC20(address _account, uint256 _amount) external override(IPool) onlyOwner {
-        IERC20 token = IERC20(asset);
-        token.transferFrom(_account, address(this), _amount);
-    }
-
     function sendERC20(address _to, uint256 _amount) external override(IPool) onlyOwner {
         IERC20 token = IERC20(asset);
         token.transfer(_to, _amount);
@@ -463,13 +458,14 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 issuedPerTick = _issued / (_tickEnd - _tickStart);
         uint256 amountPerTick = _amount / (_tickEnd - _tickStart);
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            ticks[i].supply += issuedPerTick;
-            uint256 total = ticks[i].balance + ticks[i].premiumPool;
+            IPool.Tick storage tick = ticks[i];
+            tick.supply += issuedPerTick;
+            uint256 total = tick.balance + tick.premiumPool;
             if (total == 0) {
-                ticks[i].balance += amountPerTick;
+                tick.balance += amountPerTick;
             } else {
-                ticks[i].balance += (amountPerTick * ticks[i].balance) / total;
-                ticks[i].premiumPool += (amountPerTick * ticks[i].premiumPool) / total;
+                tick.balance += (amountPerTick * tick.balance) / total;
+                tick.premiumPool += (amountPerTick * tick.premiumPool) / total;
             }
         }
     }
@@ -481,12 +477,18 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 _amount
     ) internal {
         uint256 burnPerTick = _burn / (_tickEnd - _tickStart);
-        uint256 amountPerTick = _amount / (_tickEnd - _tickStart);
+
+        uint256 total;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            ticks[i].supply -= burnPerTick;
-            uint256 total = ticks[i].balance + ticks[i].premiumPool;
-            ticks[i].balance -= (amountPerTick * ticks[i].balance) / total;
-            ticks[i].premiumPool -= (amountPerTick * ticks[i].premiumPool) / total;
+            IPool.Tick storage tick = ticks[i];
+            total += tick.balance + tick.premiumPool - tick.lockedPremium;
+        }
+
+        for (uint256 i = _tickStart; i < _tickEnd; i++) {
+            IPool.Tick storage tick = ticks[i];
+            tick.balance -= (tick.balance * _amount) / total;
+            tick.premiumPool -= ((tick.premiumPool - tick.lockedPremium) * _amount) / total;
+            tick.supply -= burnPerTick;
         }
     }
 
