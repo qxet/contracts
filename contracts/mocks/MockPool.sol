@@ -52,6 +52,7 @@ contract MockPool is IPool, ERC20 {
         uint256 _strike,
         IPriceCalculator.OptionType _optionType
     ) external override(IPool) returns (uint256 totalPremium, uint256 protocolFee) {
+        totalPremium = _amount / 20;
         protocolFee = (8 * _amount) / 1000;
     }
 

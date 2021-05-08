@@ -70,11 +70,16 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
 
     /**
      * @notice buy options
+     * @param _maturity maturity
+     * @param _strike strike price
+     * @param _amount amount to buy
+     * @param _maxFeeAmount max total amount of fee
      */
     function buyERC20Option(
         uint256 _maturity,
         uint256 _strike,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _maxFeeAmount
     ) public returns (uint256) {
         require(_maturity >= 1 days, "Options: maturity must be greater than 1 days");
         require(_maturity <= 4 weeks, "Options: maturity must be less than 4 weeks");
@@ -84,6 +89,7 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
         uint256 id = storeOption(_maturity + block.timestamp, _strike, IPriceCalculator.OptionType.Call);
         (uint256 premium, uint256 protocolFee) =
             pool.buy(id, price, _amount, _maturity, _strike, IPriceCalculator.OptionType.Call);
+        require(premium + protocolFee <= _maxFeeAmount, "Options: total fee exceeds maxFeeAmount");
 
         // receive premium from trader
         IERC20(asset).transferFrom(msg.sender, address(this), premium + protocolFee);

@@ -32,8 +32,8 @@ contract('Scenario Test', ([alice, bob]) => {
   // 10 ETH
   const depositAmount = new BN(10).mul(new BN('10').pow(new BN('18')))
 
-  async function buy(maturity: number, strike: BN, amount: BN, from: string) {
-    const response = await options.buyERC20Option(maturity, strike, amount, { from: from })
+  async function buy(maturity: number, strike: BN, amount: BN, maxFeeAmount: BN, from: string) {
+    const response = await options.buyERC20Option(maturity, strike, amount, maxFeeAmount, { from: from })
     const optionId = response.logs[1].args.optionId
     const premium = response.logs[1].args.premium
     const protocolFee = response.logs[1].args.protocolFee
@@ -86,6 +86,7 @@ contract('Scenario Test', ([alice, bob]) => {
   describe('buy option', () => {
     // 0.2 ETH
     const amount = new BN(2).mul(new BN('10').pow(new BN('17')))
+    const maxFeeAmount = amount
     // 0.02 ETH
     const smallAmount = new BN(2).mul(new BN('10').pow(new BN('16')))
 
@@ -99,7 +100,7 @@ contract('Scenario Test', ([alice, bob]) => {
 
       // create option
       const before1 = await weth.balanceOf(bob)
-      const result = await buy(60 * 60 * 24 * 7, strike, amount, bob)
+      const result = await buy(60 * 60 * 24 * 7, strike, amount, maxFeeAmount, bob)
       const after1 = await weth.balanceOf(bob)
       await time.increase(60 * 60 * 24)
 
@@ -127,7 +128,7 @@ contract('Scenario Test', ([alice, bob]) => {
       // buy options
       const optionIds = []
       for (let i = 0; i < 3; i++) {
-        const result = await buy(60 * 60 * 24 * 7, strike, smallAmount, bob)
+        const result = await buy(60 * 60 * 24 * 7, strike, smallAmount, maxFeeAmount, bob)
         optionIds.push(result.optionId)
       }
 
@@ -148,7 +149,7 @@ contract('Scenario Test', ([alice, bob]) => {
       weth.approve(options.address, amount, { from: bob })
 
       // create option
-      const result = await buy(60 * 60 * 24 * 28, strike, amount, bob)
+      const result = await buy(60 * 60 * 24 * 28, strike, amount, maxFeeAmount, bob)
       const optionId = result.optionId
 
       // 28 days later
@@ -175,7 +176,7 @@ contract('Scenario Test', ([alice, bob]) => {
       const position1 = await pool.positions(0, 3)
 
       const before1 = await weth.balanceOf(bob)
-      const result = await buy(60 * 60 * 24 * 7, strike, amount, bob)
+      const result = await buy(60 * 60 * 24 * 7, strike, amount, maxFeeAmount, bob)
       const after1 = await weth.balanceOf(bob)
       const optionId = result.optionId
 
