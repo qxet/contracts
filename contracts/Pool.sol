@@ -55,6 +55,7 @@ contract Pool is IPool, ERC1155, Ownable {
         IERC20(asset).transferFrom(msg.sender, address(this), _amount);
         uint256 mint = mulUnit256(_amount, getSupplyPerBalance(_tickStart, _tickEnd));
         addBalance(_tickStart, _tickEnd, mint, _amount);
+        // mint LP tokens
         uint256 rangeId = genRangeId(_tickStart, _tickEnd);
         _mint(msg.sender, rangeId, mint, "");
         emit Deposited(msg.sender, asset, _amount, mint);
