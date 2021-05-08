@@ -6,7 +6,6 @@ import {
   MockERC20Instance,
   MockMarginVaultInstance,
 } from '../../build/types/truffle-types'
-import { OptionType } from '../utils'
 const { expectRevert, time } = require('@openzeppelin/test-helpers')
 
 const BN = web3.utils.BN
@@ -50,6 +49,7 @@ contract('Options', ([alice]) => {
   describe('buyERC20Option', () => {
     // 0.1 ETH
     const amount = new BN(1).mul(new BN('10').pow(new BN('17')))
+    const maxFeeAmount = amount
     // 1 week
     const aWeek = 60 * 60 * 24 * 7
     // 8 week
@@ -61,32 +61,40 @@ contract('Options', ([alice]) => {
       weth.mint(alice, amount)
       weth.approve(options.address, amount, { from: alice })
 
-      await options.buyERC20Option(aWeek, strike, amount)
+      await options.buyERC20Option(aWeek, strike, amount, maxFeeAmount)
     })
 
     it('reverts by small maturity', async () => {
-      await expectRevert(options.buyERC20Option(0, strike, amount), 'Options: maturity must be greater than 1 days')
+      await expectRevert(
+        options.buyERC20Option(0, strike, amount, maxFeeAmount),
+        'Options: maturity must be greater than 1 days',
+      )
     })
 
     it('reverts by big maturity', async () => {
       await expectRevert(
-        options.buyERC20Option(eightWeeks, strike, amount),
+        options.buyERC20Option(eightWeeks, strike, amount, maxFeeAmount),
         'Options: maturity must be less than 4 weeks',
       )
     })
 
     it('reverts by strike', async () => {
-      await expectRevert(options.buyERC20Option(aWeek, 0, amount), 'Options: strike must not be 0')
+      await expectRevert(options.buyERC20Option(aWeek, 0, amount, maxFeeAmount), 'Options: strike must not be 0')
     })
 
     it('reverts by wrong amount', async () => {
-      await expectRevert(options.buyERC20Option(aWeek, strike, 0), 'Options: amount must not be 0')
+      await expectRevert(options.buyERC20Option(aWeek, strike, 0, maxFeeAmount), 'Options: amount must not be 0')
+    })
+
+    it('reverts because fee exceeds maxFeeAmount', async () => {
+      await expectRevert(options.buyERC20Option(aWeek, strike, amount, 0), 'Options: total fee exceeds maxFeeAmount')
     })
   })
 
   describe('sellERC20Option', () => {
     // 0.1 ETH
     const amount = new BN(1).mul(new BN('10').pow(new BN('17')))
+    const maxFeeAmount = amount
     const strike = new BN(2000).mul(new BN('10').pow(new BN('8')))
     let optionId: BN
 
@@ -94,7 +102,7 @@ contract('Options', ([alice]) => {
       // set up preconditions
       weth.mint(alice, amount)
       weth.approve(options.address, amount, { from: alice })
-      const result = await options.buyERC20Option(maturity, strike, amount, { from: alice })
+      const result = await options.buyERC20Option(maturity, strike, amount, maxFeeAmount, { from: alice })
       optionId = result.logs[1].args.optionId
     })
 
@@ -116,6 +124,7 @@ contract('Options', ([alice]) => {
   describe('exerciseERC20', () => {
     // 0.1 ETH
     const amount = new BN(1).mul(new BN('10').pow(new BN('17')))
+    const maxFeeAmount = amount
     const strike = new BN(1800).mul(new BN('10').pow(new BN('8')))
     let optionId: BN
 
@@ -124,7 +133,7 @@ contract('Options', ([alice]) => {
       weth.mint(mockPool.address, amount)
       weth.mint(alice, amount)
       weth.approve(options.address, amount, { from: alice })
-      const result = await options.buyERC20Option(maturity, strike, amount, { from: alice })
+      const result = await options.buyERC20Option(maturity, strike, amount, maxFeeAmount, { from: alice })
       optionId = result.logs[1].args.optionId
     })
 
