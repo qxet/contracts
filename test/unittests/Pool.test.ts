@@ -7,6 +7,8 @@ const BN = web3.utils.BN
 const Pool = artifacts.require('Pool.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const PriceCalculator = artifacts.require('PriceCalculator.sol')
+const PoolLib = artifacts.require('PoolLib.sol')
+const FixedPointLib = artifacts.require('FixedPointLib.sol')
 
 interface Tick {
   supply: BN
@@ -65,6 +67,10 @@ contract('Pool', ([alice, bob]) => {
   before(async () => {
     const lib = await PriceCalculator.new()
     await Pool.link('PriceCalculator', lib.address)
+    const poolLib = await PoolLib.new()
+    await Pool.link('PoolLib', poolLib.address)
+    const fixedPointLib = await FixedPointLib.new()
+    await Pool.link('FixedPointLib', fixedPointLib.address)
   })
 
   beforeEach('deploy contracts', async () => {
@@ -144,10 +150,12 @@ contract('Pool', ([alice, bob]) => {
       // unlock
       await pool.unlock(optionId)
       // withdraw
+      const available = await pool.getAvailableBalance(rangeStart, rangeEnd)
       const beforeBalance = await pool.balanceOf(alice, rangeId)
       await pool.withdrawERC20(depositAmount.add(premium[0]), rangeId)
       const afterBalance = await pool.balanceOf(alice, rangeId)
       // asserts
+      assert.equal(available.toString(), depositAmount.add(premium[0]).toString())
       assert.equal(afterBalance.sub(beforeBalance).toString(), depositAmount.neg().toString())
     })
 
@@ -164,10 +172,12 @@ contract('Pool', ([alice, bob]) => {
       const payout = scale(1, 17)
       await pool.exercise(optionId, amount, payout)
       // withdraw
+      const available = await pool.getAvailableBalance(rangeStart, rangeEnd)
       const beforeBalance = await pool.balanceOf(alice, rangeId)
       await pool.withdrawERC20(depositAmount.add(premium[0]).sub(payout), rangeId)
       const afterBalance = await pool.balanceOf(alice, rangeId)
       // asserts
+      assert.equal(available.toString(), depositAmount.add(premium[0]).sub(payout).toString())
       assert.equal(afterBalance.sub(beforeBalance).toString(), depositAmount.neg().toString())
     })
 
@@ -188,9 +198,15 @@ contract('Pool', ([alice, bob]) => {
       const beforeBalance1 = await pool.balanceOf(bob, rangeId)
       await pool.depositERC20(depositAmount, rangeStart, rangeEnd, { from: bob })
       const afterBalance1 = await pool.balanceOf(bob, rangeId)
+
+      const share = await pool.getSupplyPerBalance(rangeStart, rangeEnd)
+      console.log('share', share.toString())
+      console.log('lp', afterBalance1.sub(beforeBalance1).toString())
+
       // withdraw
       const beforeBalance2 = await pool.balanceOf(bob, rangeId)
-      await pool.withdrawERC20(depositAmount, rangeId, { from: bob })
+      // lost 1 wei
+      await pool.withdrawERC20(depositAmount.sub(new BN(1)), rangeId, { from: bob })
       const afterBalance2 = await pool.balanceOf(bob, rangeId)
       // asserts
       assert.equal(afterBalance1.sub(beforeBalance1).toString(), afterBalance2.sub(beforeBalance2).neg().toString())

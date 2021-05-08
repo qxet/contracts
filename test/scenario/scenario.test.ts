@@ -18,6 +18,8 @@ const MockChainlinkAggregator = artifacts.require('MockChainlinkAggregator.sol')
 const MockStaking = artifacts.require('MockStaking.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const PriceCalculator = artifacts.require('PriceCalculator.sol')
+const PoolLib = artifacts.require('PoolLib.sol')
+const FixedPointLib = artifacts.require('FixedPointLib.sol')
 
 contract('Scenario Test', ([alice, bob]) => {
   let weth: MockERC20Instance
@@ -58,6 +60,10 @@ contract('Scenario Test', ([alice, bob]) => {
   beforeEach(async () => {
     const lib = await PriceCalculator.new()
     await Pool.link('PriceCalculator', lib.address)
+    const poolLib = await PoolLib.new()
+    await Pool.link('PoolLib', poolLib.address)
+    const fixedPointLib = await FixedPointLib.new()
+    await Pool.link('FixedPointLib', fixedPointLib.address)
 
     weth = await MockERC20.new('MOCK', 'MOCK')
     ethUsdAggregator = await MockChainlinkAggregator.new()

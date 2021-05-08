@@ -7,6 +7,8 @@ const BN = web3.utils.BN
 const AoNPool = artifacts.require('AoNPool.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const AoNPriceCalculator = artifacts.require('AoNPriceCalculator.sol')
+const PoolLib = artifacts.require('PoolLib.sol')
+const FixedPointLib = artifacts.require('FixedPointLib.sol')
 
 interface Tick {
   supply: BN
@@ -34,6 +36,10 @@ contract('AoNPool', ([alice]) => {
   before(async () => {
     const lib = await AoNPriceCalculator.new()
     await AoNPool.link('AoNPriceCalculator', lib.address)
+    const poolLib = await PoolLib.new()
+    await AoNPool.link('PoolLib', poolLib.address)
+    const fixedPointLib = await FixedPointLib.new()
+    await AoNPool.link('FixedPointLib', fixedPointLib.address)
   })
 
   beforeEach('deploy contracts', async () => {

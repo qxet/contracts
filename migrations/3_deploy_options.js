@@ -6,6 +6,8 @@ const PoolFactory = artifacts.require('PoolFactory');
 const MarginVault = artifacts.require('MarginVault');
 const PredyStaking = artifacts.require('PredyStaking');
 const PriceCalculator = artifacts.require('PriceCalculator');
+const PoolLib = artifacts.require('PoolLib');
+const FixedPointLib = artifacts.require('FixedPointLib');
 
 module.exports = async (deployer, network) => {
     const devAccount = '0xAf388d888bC46b2d6bf2Eac43296E5D9CE2e49A5';
@@ -26,6 +28,17 @@ module.exports = async (deployer, network) => {
     await deployer.deploy(PriceCalculator);
     const priceCalculator = await PriceCalculator.deployed()
     await PoolFactory.link('PriceCalculator', priceCalculator.address)
+
+    await deployer.deploy(PoolLib);
+    const poolLib = await PoolLib.deployed()
+    await PoolFactory.link('PoolLib', poolLib.address)
+
+    await deployer.deploy(FixedPointLib);
+    const fixedPointLib = await FixedPointLib.deployed()
+    await PoolFactory.link('FixedPointLib', fixedPointLib.address)
+
+    /*
+
     await deployer.deploy(OptionsFactory);
     await deployer.deploy(PoolFactory);
     const optionsFactory = await OptionsFactory.deployed()
@@ -46,4 +59,5 @@ module.exports = async (deployer, network) => {
     poolFactory.transferOwnership(asset.address, options)
 
     console.log('addresses', options, pool)
+    */
 };

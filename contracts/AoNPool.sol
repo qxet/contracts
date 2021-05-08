@@ -59,8 +59,8 @@ contract AoNPool is Pool {
                     require(state.balance >= state.lockedAmount, "state.balance >= state.lockedAmount");
                     // step.position must be less than upper IV through a step
                     uint256 available =
-                        min(
-                            (1e18 * sub(1e6 * ((nextTick)**2), step.position)) / kE8,
+                        PoolLib.min(
+                            (1e18 * PoolLib.sub(1e6 * ((nextTick)**2), step.position)) / kE8,
                             state.balance - state.lockedAmount
                         );
                     if (available >= step.remain) {
@@ -166,7 +166,7 @@ contract AoNPool is Pool {
                 (1e10 * bs * _strike * (step.position**2 - (1e6 * (step.currentTick**2))**2)) /
                     (2 * state.premiumPool * (_spotPrice**2));
             {
-                uint256 available = (1e18 * sub(step.position, 1e6 * (step.currentTick**2))) / kE8;
+                uint256 available = (1e18 * PoolLib.sub(step.position, 1e6 * (step.currentTick**2))) / kE8;
                 if (available >= step.remain) {
                     step.stepAmount = step.remain;
                     step.remain = 0;
