@@ -8,11 +8,14 @@ import "./interfaces/IOptions.sol";
 import "./interfaces/IPool.sol";
 import "./lib/PriceCalculator.sol";
 import "./lib/AdvancedMath.sol";
+import "./lib/PoolLib.sol";
+import {FixedPointLib as FPL} from "./lib/FixedPointLib.sol";
 
 /**
  * @notice Pool contract manages the pool of funds to write options
  */
 contract Pool is IPool, ERC1155, Ownable {
+    using FPL for FPL.FixedPointUint;
     address immutable asset;
 
     // tickId => tick object
@@ -52,10 +55,12 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 _tickEnd
     ) public {
         require(_amount > 0, "Pool: amounts must not be 0");
+        FPL.FixedPointUint memory amount = FPL.fromScaledUint(_amount, 18);
         IERC20(asset).transferFrom(msg.sender, address(this), _amount);
-        uint256 mint = mulUnit256(_amount, getSupplyPerBalance(_tickStart, _tickEnd));
-        addBalance(_tickStart, _tickEnd, mint, _amount);
-        uint256 rangeId = genRangeId(_tickStart, _tickEnd);
+        uint256 mint = amount.mul(getSupplyPerBalance(_tickStart, _tickEnd)).toScaledUint(18, false);
+        PoolLib.addBalance(ticks, _tickStart, _tickEnd, mint, _amount);
+        // mint LP tokens
+        uint256 rangeId = PoolLib.genRangeId(_tickStart, _tickEnd);
         _mint(msg.sender, rangeId, mint, "");
         emit Deposited(msg.sender, asset, _amount, mint);
     }
@@ -67,11 +72,11 @@ contract Pool is IPool, ERC1155, Ownable {
      */
     function withdrawERC20(uint256 _amount, uint256 _rangeId) external {
         require(_amount > 0);
-        (uint256 tickStart, uint256 tickEnd) = getRange(_rangeId);
-
-        uint256 burn = mulUnit256(_amount, getSupplyPerBalance(tickStart, tickEnd));
+        (uint256 tickStart, uint256 tickEnd) = PoolLib.getRange(_rangeId);
+        FPL.FixedPointUint memory amount = FPL.fromScaledUint(_amount, 18);
+        uint256 burn = amount.mul(getSupplyPerBalance(tickStart, tickEnd)).toScaledUint(18, false);
         require(getAvailableBalance(tickStart, tickEnd) >= _amount, "Pool: amount is too big");
-        removeBalance(tickStart, tickEnd, burn, _amount);
+        PoolLib.removeBalance(ticks, tickStart, tickEnd, burn, _amount);
         _burn(msg.sender, _rangeId, burn);
         IERC20(asset).transfer(msg.sender, _amount);
         emit Withdrawn(msg.sender, asset, _amount, burn);
@@ -82,7 +87,7 @@ contract Pool is IPool, ERC1155, Ownable {
      * @param _tickStart lower tick
      * @param _tickEnd upper tick
      */
-    function getSupplyPerBalance(uint256 _tickStart, uint256 _tickEnd) public view returns (uint256) {
+    function getSupplyPerBalance(uint256 _tickStart, uint256 _tickEnd) public view returns (FPL.FixedPointUint memory) {
         uint256 totalSupply;
         uint256 balance;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
@@ -92,9 +97,9 @@ contract Pool is IPool, ERC1155, Ownable {
             }
         }
         if (totalSupply > 0 && balance > 0) {
-            return divUint256(totalSupply, balance);
+            return FPL.fromScaledUint(totalSupply, 18).div(FPL.fromScaledUint(balance, 18));
         } else {
-            return 1e8;
+            return FPL.fromUnscaledUint(1);
         }
     }
 
@@ -121,8 +126,9 @@ contract Pool is IPool, ERC1155, Ownable {
     function getAvailableBalance(uint256 _tickStart, uint256 _tickEnd) public view returns (uint256) {
         uint256 balance;
         for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            if (ticks[i].balance + ticks[i].premiumPool >= ticks[i].lockedPremium + ticks[i].lockedAmount) {
-                balance += (ticks[i].balance + ticks[i].premiumPool - ticks[i].lockedPremium - ticks[i].lockedAmount);
+            IPool.Tick storage tick = ticks[i];
+            if (tick.balance + tick.premiumPool >= tick.lockedPremium + tick.lockedAmount) {
+                balance += (tick.balance + tick.premiumPool - tick.lockedPremium - tick.lockedAmount);
             }
         }
         return balance;
@@ -179,8 +185,8 @@ contract Pool is IPool, ERC1155, Ownable {
                 {
                     // step.position must be less than upper IV through a step
                     uint256 available =
-                        min(
-                            (1e18 * sub(1e6 * ((step.currentTick + 1)**2), step.position)) / kE8,
+                        PoolLib.min(
+                            (1e18 * PoolLib.sub(1e6 * ((step.currentTick + 1)**2), step.position)) / kE8,
                             state.balance - state.lockedAmount
                         );
                     if (available >= step.remain) {
@@ -292,7 +298,7 @@ contract Pool is IPool, ERC1155, Ownable {
                 );
             uint256 kE8 = (1e26 * _strike * bs) / (state.premiumPool * (_spotPrice**2));
             {
-                uint256 available = (1e18 * sub(step.position, 1e6 * (step.currentTick**2))) / kE8;
+                uint256 available = (1e18 * PoolLib.sub(step.position, 1e6 * (step.currentTick**2))) / kE8;
                 if (available >= step.remain) {
                     step.stepAmount = step.remain;
                     step.remain = 0;
@@ -441,51 +447,6 @@ contract Pool is IPool, ERC1155, Ownable {
         token.transfer(_to, _amount);
     }
 
-    function addBalance(
-        uint256 _tickStart,
-        uint256 _tickEnd,
-        uint256 _issued,
-        uint256 _amount
-    ) internal {
-        require(_tickStart < _tickEnd, "Pool: tickStart < tickEnd");
-        uint256 issuedPerTick = _issued / (_tickEnd - _tickStart);
-        uint256 amountPerTick = _amount / (_tickEnd - _tickStart);
-        for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            IPool.Tick storage tick = ticks[i];
-            tick.supply += issuedPerTick;
-            uint256 total = tick.balance + tick.premiumPool;
-            if (total == 0) {
-                tick.balance += amountPerTick;
-            } else {
-                tick.balance += (amountPerTick * tick.balance) / total;
-                tick.premiumPool += (amountPerTick * tick.premiumPool) / total;
-            }
-        }
-    }
-
-    function removeBalance(
-        uint256 _tickStart,
-        uint256 _tickEnd,
-        uint256 _burn,
-        uint256 _amount
-    ) internal {
-        require(_tickStart < _tickEnd, "Pool: tickStart < tickEnd");
-        uint256 burnPerTick = _burn / (_tickEnd - _tickStart);
-
-        uint256 total;
-        for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            IPool.Tick memory tick = ticks[i];
-            total += tick.balance + tick.premiumPool - tick.lockedPremium;
-        }
-
-        for (uint256 i = _tickStart; i < _tickEnd; i++) {
-            IPool.Tick storage tick = ticks[i];
-            tick.balance -= (tick.balance * _amount) / total;
-            tick.premiumPool -= ((tick.premiumPool - tick.lockedPremium) * _amount) / total;
-            tick.supply -= burnPerTick;
-        }
-    }
-
     function calculateSpread(uint256 _amount) internal pure returns (uint256) {
         return (_amount * 2) / 100;
     }
@@ -499,7 +460,7 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 _moneyness,
         uint64 _newIV
     ) internal {
-        (uint256 maturity, uint256 moneyness) = _calMaturityAndMoneyness(_m, _moneyness);
+        (uint256 maturity, uint256 moneyness) = PoolLib._calMaturityAndMoneyness(_m, _moneyness);
         if (moneyness <= 4) {
             positions[maturity][moneyness] = _newIV;
         }
@@ -509,7 +470,7 @@ contract Pool is IPool, ERC1155, Ownable {
     }
 
     function getPosition(uint256 _m, uint256 _moneyness) internal view returns (uint256, uint256) {
-        (uint256 maturity, uint256 moneyness) = _calMaturityAndMoneyness(_m, _moneyness);
+        (uint256 maturity, uint256 moneyness) = PoolLib._calMaturityAndMoneyness(_m, _moneyness);
         if (positions[maturity][moneyness] <= 0) {
             return (0, 0);
         }
@@ -518,7 +479,10 @@ contract Pool is IPool, ERC1155, Ownable {
             iv = positions[maturity][0];
         } else if (1 <= moneyness && moneyness <= 4) {
             uint64 prePos = positions[maturity][moneyness - 1];
-            iv = prePos + ((_moneyness - getSeparation(moneyness)) * (positions[maturity][moneyness] - prePos)) / 6;
+            iv =
+                prePos +
+                ((_moneyness - PoolLib.getSeparation(moneyness)) * (positions[maturity][moneyness] - prePos)) /
+                6;
         } else if (moneyness == 5) {
             iv = positions[maturity][4];
         }
@@ -526,64 +490,6 @@ contract Pool is IPool, ERC1155, Ownable {
         uint256 rest = sqrtIV % 1e3;
         uint256 tick = (sqrtIV - rest) / 1e3;
         return (tick, iv);
-    }
-
-    function getSeparation(uint256 moneyness) internal pure returns (uint256) {
-        if (moneyness == 1) {
-            return 85;
-        } else if (moneyness == 2) {
-            return 91;
-        } else if (moneyness == 3) {
-            return 97;
-        } else if (moneyness == 4) {
-            return 103;
-        } else if (moneyness == 5) {
-            return 109;
-        }
-    }
-
-    function _calMaturityAndMoneyness(uint256 _m, uint256 _moneyness) internal pure returns (uint256, uint256) {
-        uint256 maturity;
-        if (_m <= 1 weeks) {
-            maturity = 0;
-        } else if (_m <= 4 weeks) {
-            maturity = 1;
-        } else {
-            maturity = 2;
-        }
-        uint256 moneyness;
-        if (_moneyness < 85) {
-            moneyness = 0;
-        } else if (_moneyness < 91) {
-            moneyness = 1;
-        } else if (_moneyness < 97) {
-            moneyness = 2;
-        } else if (_moneyness < 103) {
-            moneyness = 3;
-        } else if (_moneyness < 109) {
-            moneyness = 4;
-        } else {
-            moneyness = 5;
-        }
-        return (maturity, moneyness);
-    }
-
-    function mulUnit256(uint256 a, uint256 b) internal pure returns (uint256) {
-        return ((a * b) / 1e8);
-    }
-
-    function divUint256(uint256 a, uint256 b) internal pure returns (uint256) {
-        return (a * uint256(1e8)) / b;
-    }
-
-    // Range
-    function genRangeId(uint256 _tickStart, uint256 _tickEnd) public pure returns (uint256) {
-        return _tickStart + 1e2 * _tickEnd;
-    }
-
-    function getRange(uint256 _rangeId) public pure returns (uint256 _start, uint256 _end) {
-        _start = _rangeId % 1e2;
-        _end = _rangeId / 1e2;
     }
 
     function updateShortOption(
@@ -644,22 +550,6 @@ contract Pool is IPool, ERC1155, Ownable {
                 }
             }
             option.longs.push(LockedPerTick(_tickId, remain, 0));
-        }
-    }
-
-    function min(uint256 _a, uint256 _b) internal pure returns (uint256) {
-        if (_a < _b) {
-            return _a;
-        } else {
-            return _b;
-        }
-    }
-
-    function sub(uint256 _a, uint256 _b) internal pure returns (uint256) {
-        if (_a >= _b) {
-            return _a - _b;
-        } else {
-            return 0;
         }
     }
 }

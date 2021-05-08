@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title FixedPointUint
+ * @title FixedPointLib
  * @notice FixedPoint library to calculate numbers with diffrent decimals
  */
 library FixedPointLib {

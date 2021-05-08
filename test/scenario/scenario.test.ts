@@ -6,7 +6,7 @@ import {
   MockERC20Instance,
   MockMarginVaultInstance,
 } from '../../build/types/truffle-types'
-import { genRangeId, scale } from '../utils'
+import { formatEther, genRangeId, scale } from '../utils'
 const { expectRevert, time } = require('@openzeppelin/test-helpers')
 
 const BN = web3.utils.BN
@@ -18,6 +18,8 @@ const MockChainlinkAggregator = artifacts.require('MockChainlinkAggregator.sol')
 const MockStaking = artifacts.require('MockStaking.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const PriceCalculator = artifacts.require('PriceCalculator.sol')
+const PoolLib = artifacts.require('PoolLib.sol')
+const FixedPointLib = artifacts.require('FixedPointLib.sol')
 
 contract('Scenario Test', ([alice, bob]) => {
   let weth: MockERC20Instance
@@ -58,6 +60,10 @@ contract('Scenario Test', ([alice, bob]) => {
   beforeEach(async () => {
     const lib = await PriceCalculator.new()
     await Pool.link('PriceCalculator', lib.address)
+    const poolLib = await PoolLib.new()
+    await Pool.link('PoolLib', poolLib.address)
+    const fixedPointLib = await FixedPointLib.new()
+    await Pool.link('FixedPointLib', fixedPointLib.address)
 
     weth = await MockERC20.new('MOCK', 'MOCK')
     ethUsdAggregator = await MockChainlinkAggregator.new()
@@ -216,7 +222,7 @@ contract('Scenario Test', ([alice, bob]) => {
 
       await pool.withdrawERC20(depositAmount.add(poolProfit), rangeId, { from: alice })
       const afterLPToken = await pool.balanceOf(alice, rangeId)
-      assert.equal(beforeLPToken.sub(afterLPToken).toString(), '9999999942605363289')
+      assert.equal(formatEther(beforeLPToken.sub(afterLPToken)), '10.0')
     })
   })
 })

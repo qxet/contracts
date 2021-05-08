@@ -7,6 +7,8 @@ const BN = web3.utils.BN
 const Pool = artifacts.require('Pool.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const PriceCalculator = artifacts.require('PriceCalculator.sol')
+const PoolLib = artifacts.require('PoolLib.sol')
+const FixedPointLib = artifacts.require('FixedPointLib.sol')
 
 interface Tick {
   supply: BN
@@ -29,7 +31,7 @@ interface LockedOption {
   longs: LockedPerTick[]
 }
 
-contract('Pool', ([alice]) => {
+contract('Pool', ([alice, bob]) => {
   let pool: PoolInstance
   let weth: MockERC20Instance
 
@@ -65,6 +67,10 @@ contract('Pool', ([alice]) => {
   before(async () => {
     const lib = await PriceCalculator.new()
     await Pool.link('PriceCalculator', lib.address)
+    const poolLib = await PoolLib.new()
+    await Pool.link('PoolLib', poolLib.address)
+    const fixedPointLib = await FixedPointLib.new()
+    await Pool.link('FixedPointLib', fixedPointLib.address)
   })
 
   beforeEach('deploy contracts', async () => {
@@ -99,17 +105,25 @@ contract('Pool', ([alice]) => {
   })
 
   describe('withdrawETH', () => {
-    // 1.2 ETH
-    const depositAmount = new BN(12).mul(new BN('10').pow(new BN('17')))
+    // 1 ETH
+    const depositAmount = scale(1, 18)
     const rangeStart = 1
     const rangeEnd = 3
     const rangeId = genRangeId(rangeStart, rangeEnd)
+    // option series
+    const maturity = 60 * 60 * 24 * 7
+    const strike = scale(1000, 8)
 
-    it('withdraw 1.2 ETH', async () => {
-      // set up preconditions
-      weth.mint(alice, depositAmount)
-      weth.approve(pool.address, depositAmount, { from: alice })
+    beforeEach(async () => {
+      const amount = scale(1, 18)
+      await weth.mint(alice, depositAmount.add(amount))
+      await weth.approve(pool.address, depositAmount, { from: alice })
       await pool.depositERC20(depositAmount, rangeStart, rangeEnd)
+
+      weth.mint(bob, depositAmount)
+    })
+
+    it('deposit and withdraw same amount of ether', async () => {
       // withdraw
       const beforeBalance = await pool.balanceOf(alice, rangeId)
       const receipt = await pool.withdrawERC20(depositAmount, rangeId)
@@ -124,13 +138,88 @@ contract('Pool', ([alice]) => {
       })
     })
 
+    it('deposit 1 ETH and withdraw 1 ETH + premium', async () => {
+      // buy
+      const optionId = 1
+      const spot = scale(1000, 8)
+      const amount = scale(1, 18)
+      await weth.approve(pool.address, amount, { from: alice })
+      const premium = await pool.buy.call(optionId, spot, amount, maturity, strike, OptionType.Call)
+      await pool.buy(optionId, spot, amount, maturity, strike, OptionType.Call)
+      await weth.transfer(pool.address, premium[0])
+      // unlock
+      await pool.unlock(optionId)
+      // withdraw
+      const available = await pool.getAvailableBalance(rangeStart, rangeEnd)
+      const beforeBalance = await pool.balanceOf(alice, rangeId)
+      await pool.withdrawERC20(depositAmount.add(premium[0]), rangeId)
+      const afterBalance = await pool.balanceOf(alice, rangeId)
+      // asserts
+      assert.equal(available.toString(), depositAmount.add(premium[0]).toString())
+      assert.equal(afterBalance.sub(beforeBalance).toString(), depositAmount.neg().toString())
+    })
+
+    it('deposit 1 ETH and withdraw remain ether', async () => {
+      // buy
+      const optionId = 1
+      const spot = scale(1000, 8)
+      const amount = scale(1, 18)
+      await weth.approve(pool.address, amount, { from: alice })
+      const premium = await pool.buy.call(optionId, spot, amount, maturity, strike, OptionType.Call)
+      await pool.buy(optionId, spot, amount, maturity, strike, OptionType.Call)
+      await weth.transfer(pool.address, premium[0])
+      // exercise
+      const payout = scale(1, 17)
+      await pool.exercise(optionId, amount, payout)
+      // withdraw
+      const available = await pool.getAvailableBalance(rangeStart, rangeEnd)
+      const beforeBalance = await pool.balanceOf(alice, rangeId)
+      await pool.withdrawERC20(depositAmount.add(premium[0]).sub(payout), rangeId)
+      const afterBalance = await pool.balanceOf(alice, rangeId)
+      // asserts
+      assert.equal(available.toString(), depositAmount.add(premium[0]).sub(payout).toString())
+      assert.equal(afterBalance.sub(beforeBalance).toString(), depositAmount.neg().toString())
+    })
+
+    it('withdraw after that other LPs withdraw their funds', async () => {
+      // buy
+      const optionId = 1
+      const spot = scale(1000, 8)
+      const amount = scale(1, 18)
+      await weth.approve(pool.address, amount, { from: alice })
+      const premium = await pool.buy.call(optionId, spot, amount, maturity, strike, OptionType.Call)
+      await pool.buy(optionId, spot, amount, maturity, strike, OptionType.Call)
+      await weth.transfer(pool.address, premium[0])
+      // unlock
+      await pool.unlock(optionId)
+
+      // deposit
+      weth.approve(pool.address, depositAmount, { from: bob })
+      const beforeBalance1 = await pool.balanceOf(bob, rangeId)
+      await pool.depositERC20(depositAmount, rangeStart, rangeEnd, { from: bob })
+      const afterBalance1 = await pool.balanceOf(bob, rangeId)
+
+      const share = await pool.getSupplyPerBalance(rangeStart, rangeEnd)
+      console.log('share', share.toString())
+      console.log('lp', afterBalance1.sub(beforeBalance1).toString())
+
+      // withdraw
+      const beforeBalance2 = await pool.balanceOf(bob, rangeId)
+      // lost 1 wei
+      await pool.withdrawERC20(depositAmount.sub(new BN(1)), rangeId, { from: bob })
+      const afterBalance2 = await pool.balanceOf(bob, rangeId)
+      // asserts
+      assert.equal(afterBalance1.sub(beforeBalance1).toString(), afterBalance2.sub(beforeBalance2).neg().toString())
+    })
+
     it('reverts because amount is too big', async () => {
-      // set up preconditions
-      weth.mint(alice, depositAmount)
-      weth.approve(pool.address, depositAmount, { from: alice })
-      await pool.depositERC20(depositAmount, rangeStart, rangeEnd)
       // withdraw
       await expectRevert(pool.withdrawERC20(depositAmount.mul(new BN(2)), rangeId), 'Pool: amount is too big')
+    })
+
+    it('reverts because of invalid range id', async () => {
+      const invalidRangeId = genRangeId(rangeEnd, rangeStart)
+      await expectRevert(pool.withdrawERC20(depositAmount, invalidRangeId), 'Pool: amount is too big')
     })
   })
 
