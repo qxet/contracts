@@ -74,13 +74,14 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
      * @param _strike strike price
      * @param _amount amount to buy
      * @param _maxFeeAmount max total amount of fee
+     * @return returns new option id and premium
      */
     function buyERC20Option(
         uint256 _maturity,
         uint256 _strike,
         uint256 _amount,
         uint256 _maxFeeAmount
-    ) public returns (uint256) {
+    ) public returns (uint256, uint256) {
         require(_maturity >= 1 days, "Options: maturity must be greater than 1 days");
         require(_maturity <= 4 weeks, "Options: maturity must be less than 4 weeks");
         require(_strike > 0, "Options: strike must not be 0");
@@ -101,7 +102,7 @@ contract Options is IOptions, ERC1155, IERC1155Receiver {
 
         // emit event
         emit OptionBought(id, _amount, premium, protocolFee);
-        return id;
+        return (id, premium);
     }
 
     /**

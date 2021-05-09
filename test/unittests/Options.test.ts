@@ -64,6 +64,15 @@ contract('Options', ([alice]) => {
       await options.buyERC20Option(aWeek, strike, amount, maxFeeAmount)
     })
 
+    it('call buyERC20Option option', async () => {
+      // set up preconditions
+      weth.mint(alice, amount)
+      weth.approve(options.address, amount, { from: alice })
+
+      const result = await options.buyERC20Option.call(aWeek, strike, amount, maxFeeAmount)
+      assert.equal(result[1].toString(), '5000000000000000', 'premium does not match')
+    })
+
     it('reverts by small maturity', async () => {
       await expectRevert(
         options.buyERC20Option(0, strike, amount, maxFeeAmount),
